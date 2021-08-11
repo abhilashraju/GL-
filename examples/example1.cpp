@@ -97,14 +97,14 @@ int main()
         t.glTexParameteri( GL_TEXTURE_WRAP_T, GL_REPEAT);
         t.glTexParameteri( GL_TEXTURE_MIN_FILTER, GL_LINEAR);
         t.glTexParameteri( GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-        t.glTexImage2D(0, "./wfhexprense.jpg");
+        t.glTexImage2D(0, "./hand.jpg");
 
         auto t2 = vto.bind(1);
         t2.glTexParameteri(GL_TEXTURE_WRAP_S, GL_REPEAT);
         t2.glTexParameteri(GL_TEXTURE_WRAP_T, GL_REPEAT);
         t2.glTexParameteri(GL_TEXTURE_MIN_FILTER, GL_LINEAR);
         t2.glTexParameteri(GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-        t2.glTexImage2D(0, "./image.jpg");
+        t2.glTexImage2D(0, "./nature.jpg");
 
         b.glBufferData(vertices, GL_STATIC_DRAW);
         
