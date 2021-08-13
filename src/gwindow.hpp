@@ -44,6 +44,7 @@ namespace gl {
                 renderCallBack();
                 glfwSwapBuffers(window_);
                 glfwWaitEvents();
+                glfwPostEmptyEvent();
             }
 
         }
@@ -84,11 +85,21 @@ namespace gl {
                     w->keycallback(key, scancode, action, mods);
                 });
         }
+        template<typename Callback>
+        void setMouseCallback(Callback callback) {
+            mousecallback = std::move(callback);
+            glfwSetCursorPosCallback(window_, [](GLFWwindow* window, double x, double y) {
+                auto w = getWindow(window);
+                if (w && w->mousecallback)
+                    w->mousecallback(x,y);
+                });
+        }
         std::function<void()> posCallBack;
         std::function<void()> renderCallBack;
         std::function<void(int, int)> resizeCallBack;
         std::function<void(int key, int scancode, int action, int mods)> keycallback;
-
+        std::function<void(double, double)> mousecallback;
+        
 
         static std::map< GLFWwindow*, GWindow*>& getWindowMap() {
             static std::map< GLFWwindow*, GWindow*>  gmap;

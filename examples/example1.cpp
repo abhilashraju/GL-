@@ -2,13 +2,15 @@
 #include "gl.hpp"
 #include "gwindow.hpp"
 #include <fstream>
+
 const unsigned int SCR_WIDTH = 800;
 const unsigned int SCR_HEIGHT = 600;
 using namespace gl;
-int main()
+int main(int argc, char* argv[])
 {
   
-
+    std::string argv_str(argv[0]);
+    std::string base = argv_str.substr(0, argv_str.find_last_of("/"));
     GWindow win(SCR_WIDTH, SCR_HEIGHT);
    
     const char* vsource = R"(#version 330 core

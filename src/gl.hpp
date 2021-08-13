@@ -13,11 +13,18 @@ namespace gl {
     // template vtable for generic unitoform function
     template<typename T>struct glUniform;
     template<>
-    struct glUniform<float> {
+    struct glUniform<GLfloat> {
         static const auto args1() { return glUniform1f; }
         static const auto args2() { return glUniform2f; }
         static const auto args3() { return glUniform3f; }
         static const auto args4() { return glUniform4f; }
+        static const auto args4v() { return glUniform4fv; }
+        static const auto args3v() { return glUniform3fv; }
+        static const auto args2v() { return glUniform2fv; }
+        static const auto Matrix4v() { return glUniformMatrix4fv; }
+        static const auto Matrix3v() { return glUniformMatrix3fv; }
+        static const auto Matrix2v() { return glUniformMatrix2fv; }
+        
     };
     template<>
     struct glUniform<GLint> {
@@ -25,6 +32,9 @@ namespace gl {
         static const auto args2() { return glUniform2i; }
         static const auto args3() { return glUniform3i; }
         static const auto args4() { return glUniform4i; }
+        static const auto args4v() { return glUniform4iv; }
+        static const auto args3v() { return glUniform3iv; }
+        static const auto args2v() { return glUniform2iv; }
     };
     template<>
     struct glUniform<GLuint> {
@@ -181,6 +191,21 @@ namespace gl {
             using argtype = std::remove_reference_t<decltype(std::get<0>(t))>;
             int vertexColorLocation = glGetUniformLocation(*pgm, name.c_str());
             setUniformImpl<argtype>(vertexColorLocation, t, IntoType<length>{});
+        }
+        template<typename Type>
+        void setUniformMatrix4(const std::string& name,GLuint count , GLboolean trasnpose, Type* m){
+            int vertexColorLocation = glGetUniformLocation(*pgm, name.c_str());
+            glUniform< Type>::Matrix4v()(vertexColorLocation,count,trasnpose,m);
+        }
+        template<typename Type>
+        void setUniformMatrix3(const std::string& name, GLuint count, GLboolean trasnpose, Type* m) {
+            int vertexColorLocation = glGetUniformLocation(*pgm, name.c_str());
+            glUniform< Type>::Matrix3v()(vertexColorLocation, count, trasnpose, m);
+        }
+        template<typename Type>
+        void setUniformMatrix2(const std::string& name, GLuint count, GLboolean trasnpose, Type* m) {
+            int vertexColorLocation = glGetUniformLocation(*pgm, name.c_str());
+            glUniform< Type>::Matrix2v()(vertexColorLocation, count, trasnpose, m);
         }
     };
 

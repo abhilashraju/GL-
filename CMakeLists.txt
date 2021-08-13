@@ -14,7 +14,8 @@ if(NOT CMAKE_BUILD_TYPE AND NOT CMAKE_CONFIGURATION_TYPES)
 endif()
 # Add an executable
 set(SOURCES
-    ${PROJECT_SOURCE_DIR}/examples/example1.cpp
+    # ${PROJECT_SOURCE_DIR}/examples/example1.cpp
+    ${PROJECT_SOURCE_DIR}/examples/transformation.cpp
     ${PROJECT_SOURCE_DIR}/examples/glad.c
 )
 add_executable(GLplus ${SOURCES})
@@ -30,6 +31,7 @@ target_include_directories(GLplus
         ${PROJECT_SOURCE_DIR}/KHR
         ${PROJECT_SOURCE_DIR}/
         ${PROJECT_SOURCE_DIR}/libs/glfw-3.3.4.bin.WIN64/include
+        ${PROJECT_SOURCE_DIR}/thirdparty/glm/
 )
 target_link_libraries(GLplus glfw3 glfw3_mt)
 target_link_libraries(GLplus ${OPENGL_gl_LIBRARY})
