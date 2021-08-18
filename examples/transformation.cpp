@@ -58,10 +58,7 @@ int main(int argc, char* argv[])
     auto shaderProgram = make_programme(make_shader(vsource, GL_VERTEX_SHADER), make_shader(fsource, GL_FRAGMENT_SHADER))(on_failure);
     auto shaderProgram2 = make_programme(make_shader(vsource, GL_VERTEX_SHADER), make_shader(fsource2, GL_FRAGMENT_SHADER))(on_failure);
   
-    // set up vertex data (and buffer(s)) and configure vertex attributes
-    // ------------------------------------------------------------------
-    // add a new set of vertices to form a second triangle (a total of 6 vertices); the vertex attribute configuration remains the same (still one 3-float position vector per vertex)
-    std::array<float,288> vertices = {
+     std::array<float,288> vertices = {
          -0.5f, -0.5f, -0.5f, 1.f,0.f,0.f, 0.0f, 0.0f,
           0.5f, -0.5f, -0.5f, 1.f,0.f,0.f, 1.0f, 0.0f,
           0.5f,  0.5f, -0.5f, 1.f,0.f,0.f, 1.0f, 1.0f,

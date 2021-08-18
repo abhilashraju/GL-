@@ -193,17 +193,35 @@ namespace gl {
             setUniformImpl<argtype>(vertexColorLocation, t, IntoType<length>{});
         }
         template<typename Type>
-        void setUniformMatrix4(const std::string& name,GLuint count , GLboolean trasnpose, Type* m){
+        void setUniform4v(const std::string& name,GLint count, const Type* v)
+        {
+            int vertexColorLocation = glGetUniformLocation(*pgm, name.c_str());
+            glUniform< Type>::args4v()(vertexColorLocation, count, v);
+        }
+        template<typename Type>
+        void setUniform3v(const std::string& name, GLint count, const Type* v)
+        {
+            int vertexColorLocation = glGetUniformLocation(*pgm, name.c_str());
+            glUniform< Type>::args3v()(vertexColorLocation, count, v);
+        }
+        template<typename Type>
+        void setUniform2v(const std::string& name, GLint count, const Type* v)
+        {
+            int vertexColorLocation = glGetUniformLocation(*pgm, name.c_str());
+            glUniform< Type>::args2v()(vertexColorLocation, count, v);
+        }
+        template<typename Type>
+        void setUniformMatrix4(const std::string& name,GLuint count , GLboolean trasnpose, const Type* m){
             int vertexColorLocation = glGetUniformLocation(*pgm, name.c_str());
             glUniform< Type>::Matrix4v()(vertexColorLocation,count,trasnpose,m);
         }
         template<typename Type>
-        void setUniformMatrix3(const std::string& name, GLuint count, GLboolean trasnpose, Type* m) {
+        void setUniformMatrix3(const std::string& name, GLuint count, GLboolean trasnpose, const Type* m) {
             int vertexColorLocation = glGetUniformLocation(*pgm, name.c_str());
             glUniform< Type>::Matrix3v()(vertexColorLocation, count, trasnpose, m);
         }
         template<typename Type>
-        void setUniformMatrix2(const std::string& name, GLuint count, GLboolean trasnpose, Type* m) {
+        void setUniformMatrix2(const std::string& name, GLuint count, GLboolean trasnpose, const Type* m) {
             int vertexColorLocation = glGetUniformLocation(*pgm, name.c_str());
             glUniform< Type>::Matrix2v()(vertexColorLocation, count, trasnpose, m);
         }
@@ -371,7 +389,13 @@ namespace gl {
         struct Bounded {
             unsigned index{ -1 };
             GLenum target;
-            explicit Bounded(unsigned i, GLenum t) :index(i), target(t) {}
+            explicit Bounded(unsigned i, GLenum t) :index(i), target(t) {
+                glTexParameteri(GL_TEXTURE_WRAP_S, GL_REPEAT);
+                glTexParameteri(GL_TEXTURE_WRAP_T, GL_REPEAT);
+                glTexParameteri(GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+                glTexParameteri(GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+                glTexParameteri(GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+            }
             ~Bounded() {
                 if (index >= 0) {
                     glBindTexture(target, 0);
@@ -382,12 +406,12 @@ namespace gl {
                 index = o.index;
                 o.index = -1;
             }
-            bool glTexImage2D(GLint level,const char* imagePath) {
+            bool glTexImage2D(GLint level,GLint internalformat,GLenum format,GLenum type,const char* imagePath) {
                 int width=0,height=0,nrChannels = 0;
                 stbi_set_flip_vertically_on_load(true);
                 unsigned char* data = stbi_load(imagePath, &width, &height, &nrChannels, 0);
                 if (data) {
-                    ::glTexImage2D(target, 0, GL_RGB, width, height, 0, GL_RGB, GL_UNSIGNED_BYTE, data);
+                    ::glTexImage2D(target, level, internalformat, width, height, 0, format, type, data);
                     stbi_image_free(data);
                     return true;
                 }
@@ -398,9 +422,11 @@ namespace gl {
                 glGenerateMipmap(target);
                 return true;
             }
-            void glTexParameteri(GLenum p1, GLenum p2) {
+            const Bounded& glTexParameteri(GLenum p1, GLenum p2)const {
                 ::glTexParameteri(target, p1, p2);
+                return *this;
             }
+            
             
         };
         std::array<GLuint, SIZE> vtos;
@@ -416,6 +442,11 @@ namespace gl {
             assert(index >= 0 && index < vtos.size());
             glBindTexture(target, vtos[index]);
             return Bounded{ index ,target };
+        }
+        [[nodiscard]]  Bounded glActiveTexture(unsigned index, GLenum text){
+            
+            ::glActiveTexture(text);
+           return  bind(index);
         }
 
     };

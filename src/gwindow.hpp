@@ -94,11 +94,21 @@ namespace gl {
                     w->mousecallback(x,y);
                 });
         }
+        template<typename Callback>
+        void setScrollCallback(Callback callback) {
+            scrollcallback = std::move(callback);
+            glfwSetScrollCallback(window_, [](GLFWwindow* window, double x, double y) {
+                auto w = getWindow(window);
+                if (w && w->scrollcallback)
+                    w->scrollcallback(x, y);
+                });
+        }
         std::function<void()> posCallBack;
         std::function<void()> renderCallBack;
         std::function<void(int, int)> resizeCallBack;
         std::function<void(int key, int scancode, int action, int mods)> keycallback;
         std::function<void(double, double)> mousecallback;
+        std::function<void(double, double)> scrollcallback; 
         
 
         static std::map< GLFWwindow*, GWindow*>& getWindowMap() {

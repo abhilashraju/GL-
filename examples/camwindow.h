@@ -10,9 +10,11 @@ using namespace gl;
 struct CamWindow:public GWindow
 {
 
-    CamWindow(int wid,int height):GWindow(wid,height){
-        setResizeCallback([](int w, int h) {
+    CamWindow(int wid,int ht):GWindow(wid,ht){
+        width = wid; height = ht;
+        setResizeCallback([&](int w, int h) {
             glViewport(0, 0, w, h);
+            width = w; height = h;
         });
     
         setKeyCallback([&](int key, int scancode, int action, int mods) {
@@ -41,11 +43,18 @@ struct CamWindow:public GWindow
             firsttime = false;
                 
             });
+        setScrollCallback([&](double xpos, double ypos) {
+
+
+            cam.ProcessMouseScroll(ypos);
+
+            });
     }
     bool firsttime {true};
     double prevx{0};
     double prevy{0};
-    Camera cam;
+    Camera cam{ glm::vec3(0.0f, 0.0f,17.0f) };
+    float width, height;
 };
 
 
