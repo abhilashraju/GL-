@@ -9,6 +9,9 @@
 #include <sstream>
 #define STB_IMAGE_IMPLEMENTATION
 #include "stb_image.h"
+#include <regex>
+#include <lighting.hpp>
+
 namespace gl {
     // template vtable for generic unitoform function
     template<typename T>struct glUniform;
@@ -43,15 +46,41 @@ namespace gl {
         static const auto args3() { return glUniform3ui; }
         static const auto args4() { return glUniform4ui; }
     };
+
+    template <typename Func>
+    std::string replace(std::string s, std::regex  reg, Func func) {
+        std::smatch match;
+        bool stop = false;
+        while (!stop && std::regex_search(s, match, reg)) {
+            std::string param = match.str();
+            std::string formatter = "$`";
+            formatter += func(boost::string_view{ param.c_str() + 1,param.length() - 2 }, stop);
+            formatter += "$'";
+            s = match.format(
+                formatter);
+        }
+        return s;
+    }
+    inline auto replaced_str(const std::string& str, const std::string& first, const std::string& replaced) {
+        std::regex ampreg(first);
+        return  std::regex_replace(str, ampreg, replaced);
+    }
     struct GShader
     {
         using Shader = std::optional<GLuint>;
         using value_type = typename Shader::value_type;
         Shader shader;
         std::array<char, 512> log;
+        std::string replace_imports(const std::string& str) {
+            
+            return replaced_str(str, "#import* lights*;", get_light_defs());
+            
+        }
         GShader(const char* data, GLuint type) {
             shader = glCreateShader(type);
-            glShaderSource(*shader, 1, &data, NULL);
+            std::string datastr = replace_imports(data);
+            const char* rdata = datastr.c_str();
+            glShaderSource(*shader, 1, &rdata, NULL);
             glCompileShader(*shader);
             int  success;
             glGetShaderiv(*shader, GL_COMPILE_STATUS, &success);
@@ -66,7 +95,7 @@ namespace gl {
         GShader(const std::istream& stream, GLuint type) {
             std::stringstream str;
             str << stream.rdbuf();
-            std::string datastr = str.str().c_str();
+            std::string datastr = replace_imports(str.str().c_str());
             const char* data = datastr.c_str();
             shader = glCreateShader(type);
             glShaderSource(*shader, 1, &data, NULL);

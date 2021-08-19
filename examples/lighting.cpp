@@ -7,6 +7,7 @@
 #include <random>
 #include "lighting.hpp"
 #include "basic_types.hpp"
+#include "debug.hpp"
 const unsigned int SCR_WIDTH = 800;
 const unsigned int SCR_HEIGHT = 600;
 using namespace gl;
@@ -17,8 +18,8 @@ auto& operator<<(T& os, const glm::vec3& vec) {
 }
 int main(int argc, char* argv[])
 {
-  
-   
+    
+    //Debug debug;
     CamWindow win(SCR_WIDTH, SCR_HEIGHT);
    
     const char* vshader = R"(
@@ -30,84 +31,71 @@ int main(int argc, char* argv[])
                         uniform mat4 model;
                         uniform mat4 view;
                         uniform mat4 projection;
-                        out vec3 onorm;
-                        out vec3 Fragpos;
-                        out vec2 TextCord;
+                        out vec3 Normal;
+                        out vec3 FragPos;
+                        out vec2 TexCoords;
                         void main()
                         {
                             gl_Position = projection * view * model * vec4(aPos, 1.0);
-                            Fragpos=vec3(model*vec4(aPos,1));
-                            onorm=mat3(inverse(transpose(model)))*aNormal;
-                            TextCord=atextcord;
+                            FragPos=vec3(model*vec4(aPos,1));
+                            Normal=mat3(inverse(transpose(model)))*aNormal;
+                            TexCoords=atextcord;
                         } 
                         )";
 
     const char* objfshader = R"(
                     
                         #version 330 core
-                        struct Meterial{
-                            sampler2D  diffuse;
-                            sampler2D specular;
-                            sampler2D emission;
-                            float shininess;
-                        };
-                        struct Light{
-                            vec3 ambient;
-                            vec3 diffuse;
-                            vec3 specular;
-                            
-                            float constant;
-                            float linear;
-                            float qaundratic;
-
-                            vec3 position;
-                            vec3 direction;
-                            float innercutoff;
-                            float outercutoff;
-                        };
+                        #import lights;
+                       
                         out vec4 FragColor;
                         
-                        uniform Light light;
-                        uniform Meterial meterial;
-                        uniform vec3 campos;
-                       
-                        in vec3 onorm;
-                        in vec3 Fragpos;
-                        in vec2 TextCord;
+                        uniform DirLight dirLight;
+                        #define NR_POINT_LIGHTS 4  
+                        uniform PointLight pointLights[NR_POINT_LIGHTS];
+                        uniform SpotLight spotLights[NR_POINT_LIGHTS];
+                        uniform TextureMeterial material;
+                        uniform vec3 viewPos;
+                        uniform int noofpointlights;
+                        uniform int noofspotlights;
+                        in vec3 Normal;
+                        in vec3 FragPos;
+                        in vec2 TexCoords;
+                                           
                         void main()
                         {
-                            vec3 ambientcolor = light.ambient * vec3(texture(meterial.diffuse,TextCord));
-                            vec3 Normal = normalize(onorm);
-                            vec3 lightdir=normalize(light.position-Fragpos);
-                            vec3 diffusecolor =max(dot(Normal,lightdir),0)*light.diffuse * vec3(texture(meterial.diffuse,TextCord));
-                            vec3 re = reflect(-lightdir,Normal);
-                            vec3 eyedir = normalize(campos-Fragpos);
-                            float spec= pow(max(dot(eyedir,re),0),meterial.shininess);
-                            vec3 specular= spec*light.specular*vec3(texture(meterial.specular,TextCord));
-                            vec3 emission=vec3(texture(meterial.emission,TextCord));
-                            float lengthformlight = length(light.position-Fragpos);
-                            float attenuation = 1/(light.constant+light.linear * lengthformlight + light.qaundratic*pow(lengthformlight,2)); 
+                             // properties
+                            vec3 norm = normalize(Normal);
+                            vec3 viewDir = normalize(viewPos - FragPos);
 
-                            vec3 fragdir = normalize(light.position-Fragpos);
-                            float theta = dot(fragdir,light.direction);
-                            float epsilone = light.innercutoff-light.outercutoff;
-                            float intensity = clamp((theta-light.outercutoff)/epsilone ,0,1);
-                            FragColor = vec4((ambientcolor+diffusecolor+specular)*attenuation * intensity, 1.0);
+                            // phase 1: Directional lighting
+                            LightResults result= CalcDirLight(dirLight, norm, viewDir,material.shininess);
+                         
+                            // phase 2: Point lights
+                            for(int i = 0; i < noofpointlights; i++){
+                                 LightResults pointResult=CalcPointLight(pointLights[i], norm, FragPos, viewDir,material.shininess); 
+                                 result.ambient += pointResult.ambient;
+                                 result.diffuse += pointResult.diffuse;
+                                 result.specular += pointResult.specular;
+                            } 
+                            for(int i = 0; i < noofspotlights; i++){
+                                    LightResults spotResult=CalcSpotLight(spotLights[i], norm, FragPos, viewDir,material.shininess); 
+                                    result.ambient += spotResult.ambient;
+                                    result.diffuse += spotResult.diffuse;
+                                    result.specular += spotResult.specular;
+                            }     
+                            // phase 3: Spot light
+                            //result += CalcSpotLight(spotLight, norm, FragPos, viewDir);    
+                            vec3 color=(result.ambient+result.diffuse) * vec3(texture(material.diffuse, TexCoords)) +  result.specular*vec3(texture(material.specular, TexCoords));
+                            FragColor = vec4(color, 1.0);
                             
                         }
                     )";
     const char* lsfshader = R"(
                                 #version 330 core
-                                struct Light{
-                                    vec3 ambient;
-                                    vec3 diffuse;
-                                    vec3 specular;
-                                    
-                                    vec3 position;
-                                    vec3 direction;
-                                };
+                                #import lights;
                                 out vec4 FragColor;
-                                uniform Light light;
+                                uniform DirLight light;
                                 void main()
                                 {
                                    FragColor = vec4(light.ambient,1.0f);
@@ -196,19 +184,41 @@ int main(int argc, char* argv[])
         v2.glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 8 , 0);
     }
     unsigned int lightintesity = 7;
+    int nooflights = 0;
+    int noofspotlights = 0;
     win.setKeyCallback(decorate(win.keycallback,[&](int key, int scancode, int action, int mods) {
         
             if (key == GLFW_KEY_L && action == GLFW_PRESS) {
                 lightintesity+=lightintesity;
-                if(lightintesity > std::numeric_limits< unsigned int>::max()) lightintesity=std::numeric_limits< unsigned int>::max();
+                if(lightintesity > maxattenuationcoeff) lightintesity= maxattenuationcoeff;
             }
             if (key == GLFW_KEY_K && action == GLFW_PRESS) {
                 lightintesity-=(lightintesity>>2);
                 if (lightintesity < 0) lightintesity = 1;
             }
+            if (key == GLFW_KEY_N && action == GLFW_PRESS) {
+                nooflights +=1;
+                if (nooflights > 4) nooflights = 4;
+                
+            }
+            if (key == GLFW_KEY_M && action == GLFW_PRESS) {
+                nooflights -= 1;
+                if (nooflights < 0) nooflights = 0;
+
+            }
+            if (key == GLFW_KEY_B && action == GLFW_PRESS) {
+                noofspotlights += 1;
+                if (noofspotlights > 4) noofspotlights = 4;
+
+            }
+            if (key == GLFW_KEY_V && action == GLFW_PRESS) {
+                noofspotlights -= 1;
+                if (noofspotlights < 0) noofspotlights = 0;
+
+            }
         }));
     
-    auto lightmeterial = "gold";
+    auto lightmeterial = "sun";
     win.setRenderCallback([&]() {
         glClearColor(0.2f, 0.3f, 0.3f, 1.0f);
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
@@ -216,10 +226,10 @@ int main(int argc, char* argv[])
 
         
         std::array<glm::vec3, 5> cubes = {
-            glm::vec3{0.,0.,-1.},
-            glm::vec3{1.,0.,-1.},
-            glm::vec3{2.,2.,-3.},
-            glm::vec3{3.,0.,-2.},
+            glm::vec3{0.,0.,-10.},
+            glm::vec3{-1.,0.,-10.},
+            glm::vec3{-2.,2.,-3.},
+            glm::vec3{-3.,0.,-20.},
             
 
         };
@@ -227,17 +237,49 @@ int main(int argc, char* argv[])
       
        
                     //light = light * (float)glfwGetTime();
-        auto lightsourcemodel = glm::mat4(1.0f);
-        lightsourcemodel = glm::rotate(lightsourcemodel, (float)glfwGetTime() * glm::radians(50.0f), glm::vec3(1.f, 0.f, 0.f));
-        lightsourcemodel = glm::translate(lightsourcemodel, glm::vec3{ -5.,2.,1. });
-        auto lightsrc = glm::vec3(lightsourcemodel * glm::vec4(0., 0., 0., 1));
+       
+      
         glm::mat4 projection = glm::perspective(glm::radians(win.cam.Zoom), win.width /win.height, 0.1f, 100.0f);
         glm::mat4 view = win.cam.GetViewMatrix();
 
-        
+        DirLight light;
+        light.setMaterial("brass");
+        light.direction = glm::vec3{ 0,0,-1 };
 
+        std::array<glm::vec3, 4> pointLightPositions = {
+            glm::vec3{0.,0.,1.},
+            glm::vec3{-1.,0.,-1.},
+            glm::vec3{-2.,2.,-3.},
+            glm::vec3{-3.,0.,-2.},
+        };
+        std::array<PointLight, 4> pointlights;
         
-
+        for (int i = 0; i < 4;i++) {
+            auto& light = pointlights[i];
+            light.position = pointLightPositions[i++];
+            light.setMaterial(lightmeterial);
+            light.setDistanceRange(lightintesity);
+        }
+        std::array<SpotLight, 4> spotlights;
+        std::array<glm::vec3, 4> spotLightPositions = {
+            glm::vec3{1.,0.,1.},
+            glm::vec3{-3.,3.,6.},
+            glm::vec3{-4.,2.,2.},
+            glm::vec3{-3.,-2.,5.},
+        };
+        for (int i = 0; i < 4; i++) {
+            auto& light = spotlights[i];
+            light.position = spotLightPositions[i++];
+            light.cutOff = glm::cos(glm::radians(12.5f));
+            light.outerCutOff = glm::cos(glm::radians(24.5f));
+            auto model = glm::mat4(1.0f);
+            model = glm::rotate(model, (float)glfwGetTime() * glm::radians(25.0f), glm::vec3(0.f, 1.f, 0.f));
+            model = glm::translate(model, light.position);
+           
+            light.direction = cubes[2]- glm::vec3(model*glm::vec4(0,0,0,1));
+            light.setMaterial(lightmeterial);
+            light.setDistanceRange(lightintesity);
+        }
         vao.bind(0).execute([&] {
             
                 shaderProgram.use();
@@ -245,21 +287,23 @@ int main(int argc, char* argv[])
                 shaderProgram.setUniform("meterial.specular", 1);
                 shaderProgram.setUniform("meterial.emission", 2);
                 setMeterial("meterial", "gold", shaderProgram);
-                setMeterial("light", lightmeterial, shaderProgram);
-                setAttenuations("light", lightintesity, shaderProgram);
-                shaderProgram.setUniform3v("light.position", 1, glm::value_ptr(lightsrc));
+                light.apply("dirLight",  shaderProgram);
+                apply_from_array("pointLights", pointlights, shaderProgram);
+                shaderProgram.setUniform("noofpointlights", nooflights);
+                apply_from_array("spotLights", spotlights, shaderProgram);
+                shaderProgram.setUniform("noofspotlights", noofspotlights);
+                
                 shaderProgram.setUniformMatrix4("projection", 1, GL_FALSE, glm::value_ptr(projection));
-                shaderProgram.setUniform3v("campos", 1, glm::value_ptr(win.cam.Position));
+                shaderProgram.setUniform3v("viewPos", 1, glm::value_ptr(win.cam.Position));
                 shaderProgram.setUniformMatrix4("view", 1, GL_FALSE, glm::value_ptr(view));
                 auto t1=vto.glActiveTexture(0, GL_TEXTURE0);
                 auto t2=vto.glActiveTexture(1, GL_TEXTURE1);    
                 auto t3=vto.glActiveTexture(2, GL_TEXTURE2);
 
                 //set light source pointing to one of cube;
-                auto lightdir = glm::normalize(lightsrc - cubes[2]);
-                shaderProgram.setUniform3v("light.direction", 1, glm::value_ptr(lightdir));
-                shaderProgram.setUniform("light.innercutoff", 1, glm::cos(glm::radians(12.5f)));
-                shaderProgram.setUniform("light.outercutoff", 1, glm::cos(glm::radians(25.f)));
+              
+                /*shaderProgram.setUniform("light.innercutoff", 1, glm::cos(glm::radians(12.5f)));
+                shaderProgram.setUniform("light.outercutoff", 1, glm::cos(glm::radians(25.f)));*/
                 
                 auto model = glm::mat4(1.0f);
                 for (auto m : cubes) {
@@ -281,10 +325,27 @@ int main(int argc, char* argv[])
             shaderProgram2.use();
             shaderProgram2.setUniformMatrix4("view", 1, GL_FALSE, glm::value_ptr(view));
             shaderProgram2.setUniformMatrix4("projection", 1, GL_FALSE, glm::value_ptr(projection));
+            for (int i = 0; i < nooflights;i++) {
+                auto& light = pointLightPositions[i];
+                auto model = glm::mat4(1.0f);
+                model = glm::translate(model, light);
+                shaderProgram2.setUniformMatrix4("model", 1, GL_FALSE, glm::value_ptr(model));
+                setMeterial("light", lightmeterial, shaderProgram2);
+                glDrawArrays(GL_TRIANGLES, 0, 36);
+            }
+
+            for (int i = 0; i < noofspotlights; i++) {
+                auto& light = spotLightPositions[i];
+                auto model = glm::mat4(1.0f);
+                model = glm::rotate(model, (float)glfwGetTime() * glm::radians(25.0f), glm::vec3(0.f, 1.f, 0.f));
+                model = glm::translate(model, light);
+                
+                shaderProgram2.setUniformMatrix4("model", 1, GL_FALSE, glm::value_ptr(model));
+                setMeterial("light", lightmeterial, shaderProgram2);
+                glDrawArrays(GL_TRIANGLES, 0, 36);
+            }
             
-            shaderProgram2.setUniformMatrix4("model", 1, GL_FALSE, glm::value_ptr(lightsourcemodel));
-            setMeterial("light", lightmeterial, shaderProgram2);
-            glDrawArrays(GL_TRIANGLES, 0, 36);
+           
 
 
             });

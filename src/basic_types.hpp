@@ -8,6 +8,7 @@ namespace gl{
         size_t sz{0};
         ArrayView(const T* d, size_t s) :d(d),sz(s) {}
         const T* data()const{return d;}
+        const T& at(size_t index)const { assert(index < size());  return *(data() + index); }
         size_t size()const {return sz;}
     };
 
