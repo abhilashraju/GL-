@@ -9,8 +9,7 @@
 #include <sstream>
 #define STB_IMAGE_IMPLEMENTATION
 #include "stb_image.h"
-#include <regex>
-#include <lighting.hpp>
+#include "lighting.hpp"
 
 namespace gl {
     // template vtable for generic unitoform function
@@ -47,7 +46,7 @@ namespace gl {
         static const auto args4() { return glUniform4ui; }
     };
 
-    template <typename Func>
+    /*template <typename Func>
     std::string replace(std::string s, std::regex  reg, Func func) {
         std::smatch match;
         bool stop = false;
@@ -60,22 +59,15 @@ namespace gl {
                 formatter);
         }
         return s;
-    }
-    inline auto replaced_str(const std::string& str, const std::string& first, const std::string& replaced) {
-        std::regex ampreg(first);
-        return  std::regex_replace(str, ampreg, replaced);
-    }
+    }*/
+   
     struct GShader
     {
         using Shader = std::optional<GLuint>;
         using value_type = typename Shader::value_type;
         Shader shader;
         std::array<char, 512> log;
-        std::string replace_imports(const std::string& str) {
-            
-            return replaced_str(str, "#import* lights*;", get_light_defs());
-            
-        }
+      
         GShader(const char* data, GLuint type) {
             shader = glCreateShader(type);
             std::string datastr = replace_imports(data);
@@ -328,12 +320,23 @@ namespace gl {
         };
         std::array<GLuint, SIZE> vbos;
         GLenum target;
+        bool cleared{ false };
         VBOS(GLenum t) :target(t) {
             glGenBuffers(vbos.size(), vbos.data());
         }
         ~VBOS() {
-            glDeleteBuffers(vbos.size(), vbos.data());
+            if (!cleared) {
+                glDeleteBuffers(vbos.size(), vbos.data());
+            }
+            
         }
+        VBOS(VBOS&& o) {
+            vbos = std::move(o.vbos);
+            target = o.target;
+            o.cleared = true;
+        }
+        VBOS(const VBOS&) = delete;
+        VBOS& operator=(const VBOS&) = delete;
         GLuint& operator[](int index) { assert(index >= 0 && index < vbos.size()); return vbos[index]; }
         [[nodiscard]] Bounded bind(unsigned index) {
             assert(index >= 0 && index < vbos.size());
@@ -397,12 +400,22 @@ namespace gl {
 
         };
         std::array<GLuint, SIZE> vaos;
+        bool cleared{ false };
         VAOS() {
             glGenVertexArrays(vaos.size(), vaos.data());
         }
+      
         ~VAOS() {
-            glDeleteVertexArrays(vaos.size(), vaos.data());
+            if (!cleared) {
+                glDeleteVertexArrays(vaos.size(), vaos.data());
+            }
         }
+        VAOS(VAOS&& o) {
+            vaos = std::move(o.vaos);
+            o.cleared = true;
+        }
+        VAOS(const VAOS&) = delete;
+        VAOS& operator=(const VAOS&) = delete;
         GLuint& operator[](int index) { assert(index >= 0 && index < vaos.size()); return vaos[index]; }
         [[nodiscard]] Bounded bind(unsigned index) {
             assert(index >= 0 && index < vaos.size());
@@ -458,13 +471,28 @@ namespace gl {
             
             
         };
-        std::array<GLuint, SIZE> vtos;
+        std::vector<GLuint> vtos;
+        
         GLenum target;
+        bool cleared{ false };
         VTOS(GLenum t) :target(t) {
+            vtos.resize(SIZE);
             glGenTextures(vtos.size(), vtos.data());
         }
         ~VTOS() {
-            glDeleteTextures(vtos.size(), vtos.data());
+            if(!cleared)
+                glDeleteTextures(vtos.size(), vtos.data());
+        }
+        VTOS(VTOS&& o) {
+            vtos = std::move(o.vtos);
+            target = o.target;
+            o.cleared = true;
+        }
+        VTOS(const VTOS&) = delete;
+        VTOS& operator=(const VTOS&) = delete;
+        void push_back(GLuint i = GLuint{}) {
+            vtos.push_back(i);
+            glGenTextures(1, vtos.data()+vtos.size()-1);
         }
         GLuint& operator[](int index) { assert(index >= 0 && index < vtos.size()); return vtos[index]; }
         [[nodiscard]] Bounded bind(unsigned index) {
@@ -472,9 +500,9 @@ namespace gl {
             glBindTexture(target, vtos[index]);
             return Bounded{ index ,target };
         }
-        [[nodiscard]]  Bounded glActiveTexture(unsigned index, GLenum text){
+        [[nodiscard]]  Bounded glActiveTexture(unsigned index){
             
-            ::glActiveTexture(text);
+            ::glActiveTexture(GL_TEXTURE0+index);
            return  bind(index);
         }
 

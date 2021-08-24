@@ -3,8 +3,77 @@
 #include "glm/glm.hpp"
 #include <glm/gtc/matrix_transform.hpp>
 #include <glm/gtc/type_ptr.hpp>
+#include <regex>
+#include <lighting.hpp>
+#include <vector>
 namespace gl {
     struct GProgramme;
+   
+    struct CommonVertexShader {
+        static std::string to_shader_str() {
+            return  R"(
+                        #version 330 core
+                        #import core;
+                        layout (location = 0) in vec3 aPos;
+                        layout (location = 1) in vec3 aNormal;
+                        layout (location = 2) in vec2 aTexCoords;
+                
+                        out vec2 TexCoords;
+                        out vec3 Normal;
+                        out vec3 FragPos;
+
+                        uniform mat4 model;
+                        uniform mat4 view;
+                        uniform mat4 projection;
+                        
+                        void main()
+                        {
+                            TexCoords = aTexCoords;    
+                            gl_Position = projection * view * model * vec4(aPos, 1.0);
+                            Normal = AdjustNormal(model,aNormal);
+                            FragPos= mat3(model) * aPos;
+                        }
+                        )";
+        }
+    };
+    struct CommonFragmentShader {
+        static std::string to_shader_str(bool model=false) {
+           
+            return  !model ? R"(
+                    
+                            #version 330 core
+                            #import lights;
+                            #import core;
+                            out vec4 FragColor;
+
+                            in vec2 TexCoords;
+                            in vec3 Normal;
+                            in vec3 FragPos;
+                            void main()
+                            {   
+                               FragColor = vec4(1.0f, 0.5f, 0.2f, 1.0f);
+                            }
+                    )":
+                    R"(
+                    
+                                    #version 330 core
+                                    #import lights;
+                                    #import core;
+                                    out vec4 FragColor;
+
+                                    in vec2 TexCoords;
+                                    in vec3 Normal;
+                                    in vec3 FragPos;
+                                    uniform sampler2D texture_diffuse1;
+                                    void main()
+                                    {   
+                                       
+                                        vec3 color=vec3(texture(texture_diffuse1, TexCoords));
+                                        FragColor = vec4(color, 1.0);
+                                    }
+                            )";
+        }
+    };
     struct metrials
     {
         const char* name;
@@ -150,17 +219,32 @@ namespace gl {
             pgm.setUniform3v(name + ".direction",1, glm::value_ptr(direction));
             BaseLight::apply(name, pgm);
         }
+
+         
         
     };
 
     
     struct PointLight:BaseLight {
-        glm::vec3 position{ glm::vec3{0,10,0} };
+    private:
+        glm::vec3 pos{ glm::vec3{0,0,0} };
 
         float constant;
         float linear;
         float quadratic;
-
+        glm::mat4 m{ glm::mat4(1.0f) };
+    public:
+        PointLight& rotate(float angle, const glm::vec3& axis) {
+            m =glm::rotate(m, angle, axis);
+            return *this;
+        }
+        PointLight& translate(const glm::vec3& newpos) {
+            m = glm::translate(m, newpos);
+            return *this;
+        }
+        void setPosition(const glm::vec3& p) {  pos=p; }
+        glm::vec3 position()const { return glm::vec3(m * glm::vec4(pos, 1)); }
+        glm::mat4 model()const { return m; }
         static std::string to_shader_str() {
             return R"(
             struct PointLight {    
@@ -208,7 +292,8 @@ namespace gl {
         template<typename GProgramme>
         void apply(const std::string& name, GProgramme& pgm)const {
             BaseLight::apply(name, pgm);
-            pgm.setUniform3v(name + ".position", 1, glm::value_ptr(position));
+            
+            pgm.setUniform3v(name + ".position", 1, glm::value_ptr(position()));
             pgm.setUniform(name + ".constant", constant);
             pgm.setUniform(name + ".linear", linear);
             pgm.setUniform(name + ".quadratic", quadratic);
@@ -311,8 +396,20 @@ namespace gl {
             )";
         }
     };
-    template<typename View , typename GProgramme>
-    inline void apply_from_array(const std::string& name, const View& view, GProgramme& pgm) {
+    struct UtilityFunctions {
+        static std::string to_shader_str() {
+            return  R"(
+
+            vec3 AdjustNormal(mat4 model ,vec3 normal){
+                return normalize(mat3(inverse(transpose(model))) * normal);
+            }
+
+            )";
+        }
+    };
+    
+    template<typename ArrayView , typename GProgramme>
+    inline void apply_from_array(const std::string& name, const ArrayView& view, GProgramme& pgm) {
         for (size_t i = 0; i < view.size(); i++) {
             std::stringstream str;
             str << name << "[" << i << "]";
@@ -328,4 +425,44 @@ namespace gl {
     inline std::string get_light_defs() {
         return make_shader_defs_from<LightResults, TextuteMaterial, DirLight, PointLight, SpotLight>();
     }
+    inline std::string get_core_defs() {
+        return make_shader_defs_from<UtilityFunctions>(); 
+    }
+    inline auto replaced_str(const std::string& str, const std::string& first, const std::string& replaced) {
+        std::regex ampreg(first);
+        return  std::regex_replace(str, ampreg, replaced);
+    }
+    template <typename Func>
+    std::string replace(std::string s, std::regex  reg, Func func) {
+        std::smatch match;
+        bool stop = false;
+        while (!stop && std::regex_search(s, match, reg)) {
+            std::string param = match.str();
+            std::string formatter = "$`";
+            formatter += func(std::string_view(param).substr(8,param.length()-9), stop);
+            formatter += "$'";
+            s = match.format(
+                formatter);
+        }
+        return s;
+    }
+    std::string replace_imports(const std::string& str) {
+    std::vector<std::string> imported;
+        return replace(str, std::regex("#import.*;"), [&](auto v,bool& stop) {
+            if (std::find_if(std::begin(imported), std::end(imported), [&](auto val) {return v == val; }) == end(imported)) {
+                imported.push_back(std::string(v.data(),v.length()));
+                if (v == "lights") {
+                  return get_light_defs();
+                }
+                if (v == "core") {
+                    return get_core_defs();
+                }
+            }
+           
+            return std::string();
+         });
+
+    }
+   
+   
 }

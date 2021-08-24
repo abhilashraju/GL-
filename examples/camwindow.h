@@ -32,15 +32,17 @@ struct CamWindow:public GWindow
                 cam.ProcessKeyboard(RIGHT, .1);
         });
         
-        setMouseCallback([&](double xpos,double ypos) {
+        setMouseCallback([&](const MouseContext& mc,double xpos,double ypos) {
             
-            
-            if (!firsttime) {
-                cam.ProcessMouseMovement(xpos - prevx, prevy - ypos);
+            if (mc.mousebutton == GLFW_MOUSE_BUTTON_LEFT && mc.pressedstate == GLFW_PRESS) {
+                if (!firsttime) {
+                    cam.ProcessMouseMovement(xpos - prevx, prevy - ypos);
+                }
+                prevx = xpos;
+                prevy = ypos;
+                firsttime = false;
             }
-            prevx = xpos;
-            prevy = ypos;
-            firsttime = false;
+           
                 
             });
         setScrollCallback([&](double xpos, double ypos) {

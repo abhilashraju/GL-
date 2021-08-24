@@ -15,7 +15,9 @@ endif()
 # Add an executable
 set(SOURCES
     # ${PROJECT_SOURCE_DIR}/examples/example1.cpp
-    ${PROJECT_SOURCE_DIR}/examples/lighting.cpp
+    # ${PROJECT_SOURCE_DIR}/examples/transformation.cpp
+    # ${PROJECT_SOURCE_DIR}/examples/lighting.cpp
+    ${PROJECT_SOURCE_DIR}/examples/model_loading.cpp
     ${PROJECT_SOURCE_DIR}/examples/glad.c
 )
 add_executable(GLplus ${SOURCES})
@@ -32,10 +34,12 @@ target_include_directories(GLplus
         ${PROJECT_SOURCE_DIR}/
         ${PROJECT_SOURCE_DIR}/libs/glfw-3.3.4.bin.WIN64/include
         ${PROJECT_SOURCE_DIR}/thirdparty/glm/
+        ${PROJECT_SOURCE_DIR}/thirdparty/assimp/include
 )
-target_link_libraries(GLplus glfw3 glfw3_mt)
+target_link_libraries(GLplus glfw3 glfw3_mt assimp-vc140-mt)
 target_link_libraries(GLplus ${OPENGL_gl_LIBRARY})
 target_link_directories(GLplus
     PRIVATE 
     ${PROJECT_SOURCE_DIR}/libs/glfw-3.3.4.bin.WIN64/lib-vc2019
+    ${PROJECT_SOURCE_DIR}/libs/assimp
     )

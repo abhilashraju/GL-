@@ -27,6 +27,12 @@ namespace gl {
                 std::cout << "Failed to initialize GLAD" << std::endl;
             }
             getWindowMap()[window_] = this;
+
+            glfwSetMouseButtonCallback(window_, [](GLFWwindow* window, int button, int action , int mods) {
+
+                auto w = getWindow(window);
+                w->msContext = { button ,action,mods };
+            });
         }
         ~GWindow() {
             getWindowMap()[window_] = nullptr;
@@ -91,7 +97,7 @@ namespace gl {
             glfwSetCursorPosCallback(window_, [](GLFWwindow* window, double x, double y) {
                 auto w = getWindow(window);
                 if (w && w->mousecallback)
-                    w->mousecallback(x,y);
+                    w->mousecallback(w->msContext,x,y);
                 });
         }
         template<typename Callback>
@@ -103,12 +109,19 @@ namespace gl {
                     w->scrollcallback(x, y);
                 });
         }
+        struct MouseContext {
+            int mousebutton{ 0 };
+            int pressedstate{ GLFW_RELEASE };
+            int modifiers{ 0 };
+        };
         std::function<void()> posCallBack;
         std::function<void()> renderCallBack;
         std::function<void(int, int)> resizeCallBack;
         std::function<void(int key, int scancode, int action, int mods)> keycallback;
-        std::function<void(double, double)> mousecallback;
+        std::function<void(const MouseContext&,double, double)> mousecallback;
         std::function<void(double, double)> scrollcallback; 
+        
+        MouseContext msContext;
         
 
         static std::map< GLFWwindow*, GWindow*>& getWindowMap() {

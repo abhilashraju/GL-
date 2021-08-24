@@ -218,7 +218,8 @@ int main(int argc, char* argv[])
             }
         }));
     
-    auto lightmeterial = "sun";
+    auto lightmeterial = "gold";
+    auto spotlighmaterial="white rubber";
     win.setRenderCallback([&]() {
         glClearColor(0.2f, 0.3f, 0.3f, 1.0f);
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
@@ -226,10 +227,10 @@ int main(int argc, char* argv[])
 
         
         std::array<glm::vec3, 5> cubes = {
-            glm::vec3{0.,0.,-10.},
-            glm::vec3{-1.,0.,-10.},
+            glm::vec3{0.,0.,-1.},
+            glm::vec3{-1.,0.,-1.},
             glm::vec3{-2.,2.,-3.},
-            glm::vec3{-3.,0.,-20.},
+            glm::vec3{-3.,0.,-2.},
             
 
         };
@@ -248,15 +249,15 @@ int main(int argc, char* argv[])
 
         std::array<glm::vec3, 4> pointLightPositions = {
             glm::vec3{0.,0.,1.},
-            glm::vec3{-1.,0.,-1.},
-            glm::vec3{-2.,2.,-3.},
-            glm::vec3{-3.,0.,-2.},
+            glm::vec3{-1.,0.,1.},
+            glm::vec3{-2.,2.,3.},
+            glm::vec3{-3.,0.,2.},
         };
         std::array<PointLight, 4> pointlights;
         
         for (int i = 0; i < 4;i++) {
             auto& light = pointlights[i];
-            light.position = pointLightPositions[i++];
+            light.translate(pointLightPositions[i]);
             light.setMaterial(lightmeterial);
             light.setDistanceRange(lightintesity);
         }
@@ -269,19 +270,21 @@ int main(int argc, char* argv[])
         };
         for (int i = 0; i < 4; i++) {
             auto& light = spotlights[i];
-            light.position = spotLightPositions[i++];
+            light.translate(spotLightPositions[i]);
             light.cutOff = glm::cos(glm::radians(12.5f));
             light.outerCutOff = glm::cos(glm::radians(24.5f));
             auto model = glm::mat4(1.0f);
             model = glm::rotate(model, (float)glfwGetTime() * glm::radians(25.0f), glm::vec3(0.f, 1.f, 0.f));
-            model = glm::translate(model, light.position);
+            model = glm::translate(model, light.position());
            
-            light.direction = cubes[2]- glm::vec3(model*glm::vec4(0,0,0,1));
-            light.setMaterial(lightmeterial);
+            light.direction = cubes[i]- glm::vec3(model*glm::vec4(0,0,0,1));
+            light.setMaterial(spotlighmaterial);
             light.setDistanceRange(lightintesity);
         }
         vao.bind(0).execute([&] {
-            
+                auto t1=vto.glActiveTexture(0);
+                auto t2=vto.glActiveTexture(1);    
+                auto t3=vto.glActiveTexture(2);
                 shaderProgram.use();
                 shaderProgram.setUniform("meterial.diffuse", 0);
                 shaderProgram.setUniform("meterial.specular", 1);
@@ -294,11 +297,10 @@ int main(int argc, char* argv[])
                 shaderProgram.setUniform("noofspotlights", noofspotlights);
                 
                 shaderProgram.setUniformMatrix4("projection", 1, GL_FALSE, glm::value_ptr(projection));
-                shaderProgram.setUniform3v("viewPos", 1, glm::value_ptr(win.cam.Position));
+                auto viewpos= glm::vec3{-3,3,3};
+                shaderProgram.setUniform3v("viewPos", 1, glm::value_ptr(viewpos));
                 shaderProgram.setUniformMatrix4("view", 1, GL_FALSE, glm::value_ptr(view));
-                auto t1=vto.glActiveTexture(0, GL_TEXTURE0);
-                auto t2=vto.glActiveTexture(1, GL_TEXTURE1);    
-                auto t3=vto.glActiveTexture(2, GL_TEXTURE2);
+               
 
                 //set light source pointing to one of cube;
               
@@ -309,7 +311,7 @@ int main(int argc, char* argv[])
                 for (auto m : cubes) {
                     model = glm::translate(model, m);
                     //model = glm::rotate(model, (float)glfwGetTime() * glm::radians(25.0f), glm::vec3(0.f, 1.f, 0.f));
-                    model = glm::scale(model, { 2,2,2 });
+                    //model = glm::scale(model, { 2,2,2 });
 
                     shaderProgram.setUniformMatrix4("model", 1, GL_FALSE, glm::value_ptr(model));
 
@@ -341,7 +343,7 @@ int main(int argc, char* argv[])
                 model = glm::translate(model, light);
                 
                 shaderProgram2.setUniformMatrix4("model", 1, GL_FALSE, glm::value_ptr(model));
-                setMeterial("light", lightmeterial, shaderProgram2);
+                setMeterial("light", spotlighmaterial, shaderProgram2);
                 glDrawArrays(GL_TRIANGLES, 0, 36);
             }
             
