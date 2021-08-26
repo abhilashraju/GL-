@@ -7,6 +7,7 @@
 #include <optional>
 #include <assert.h>
 #include <sstream>
+#include "gerror.hpp"
 #define STB_IMAGE_IMPLEMENTATION
 #include "stb_image.h"
 #include "lighting.hpp"
@@ -252,7 +253,7 @@ namespace gl {
         return [=](auto on_failure) {
             GShader shader(data, type);
             if (!shader) {
-                on_failure(shader.log.data());
+                on_failure(std::error_code{ GerrorCode::ShaderError },shader.log.data());
             }
             return std::move(shader);
         };
@@ -261,7 +262,7 @@ namespace gl {
         return [&stream,type=type](auto on_failure) {
             GShader shader(stream, type);
             if (!shader) {
-                on_failure(shader.log.data());
+                on_failure(std::error_code{ GerrorCode::ShaderError },shader.log.data());
             }
             return std::move(shader);
         };
@@ -276,7 +277,7 @@ namespace gl {
                 pgm = std::move(GProgramme(vshader, fshader));
             }
             if (!pgm) {
-                on_failure(pgm.log.data());
+                on_failure(std::error_code{ GerrorCode::ProgrammeError }, pgm.log.data());
             }
             return pgm;
         };

@@ -38,7 +38,7 @@ int main(int argc, char* argv[])
                         uniform mat4 model;
                         uniform mat4 view;
                         uniform mat4 projection;
-                        
+                    
                         void main()
                         {
                             TexCoords = aTexCoords;    
@@ -58,6 +58,7 @@ int main(int argc, char* argv[])
                             in vec2 TexCoords;
                             in vec3 Normal;
                             in vec3 FragPos;
+                            
 
                             uniform vec3 camDir;
                             uniform sampler2D texture_diffuse1;
@@ -80,8 +81,8 @@ int main(int argc, char* argv[])
                             }
                     )";
   
-    auto on_failure = [](auto log) {
-        std::cout << "ERROR::Prgramme::Link Failed\n" << log << std::endl;
+    auto on_failure = [](const std::error_code& code,auto log) {
+        std::cout << code.message() << log << std::endl;
         
     };
    

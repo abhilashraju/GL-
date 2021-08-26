@@ -49,8 +49,8 @@ int main(int argc, char* argv[])
                                    FragColor = vec4(fcolor,1.0f);
                                 }
                             )";
-    auto on_failure = [](auto log) {
-        std::cout << "ERROR::Prgramme::Link Failed\n" << log << std::endl;
+    auto on_failure = [](const std::error_code& code,auto log) {
+        std::cout << code.message() << log << std::endl;
         
     };
    
