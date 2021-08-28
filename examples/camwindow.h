@@ -35,14 +35,12 @@ struct CamWindow:public GWindow
         setMouseCallback([&](const MouseContext& mc,double xpos,double ypos) {
             
             if (mc.mousebutton == GLFW_MOUSE_BUTTON_LEFT && mc.pressedstate == GLFW_PRESS) {
-                if (!firsttime) {
+               
                     cam.ProcessMouseMovement(xpos - prevx, prevy - ypos);
-                }
-                prevx = xpos;
-                prevy = ypos;
-                firsttime = false;
+  
             }
-           
+            prevx = xpos;
+            prevy = ypos;
                 
             });
         setScrollCallback([&](double xpos, double ypos) {

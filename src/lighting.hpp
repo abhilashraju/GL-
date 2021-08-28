@@ -396,6 +396,60 @@ namespace gl {
             )";
         }
     };
+    struct Kernels {
+        static std::string to_shader_str() {
+            return  R"(
+            const float offset = 1.0 / 300.0;  
+            vec2[9] get_offsets(){
+                vec2 offsets[9] = vec2[](
+                                vec2(-offset,  offset), // top-left
+                                vec2( 0.0f,    offset), // top-center
+                                vec2( offset,  offset), // top-right
+                                vec2(-offset,  0.0f),   // center-left
+                                vec2( 0.0f,    0.0f),   // center-center
+                                vec2( offset,  0.0f),   // center-right
+                                vec2(-offset, -offset), // bottom-left
+                                vec2( 0.0f,   -offset), // bottom-center
+                                vec2( offset, -offset)  // bottom-right    
+                            );
+                return offsets;
+            }            
+            vec3 apply_kernal(sampler2D tex,vec2 texCord, float[9] kernel){
+                vec3 sampleTex[9];
+                vec2[9] offsets=get_offsets();
+                for(int i = 0; i < 9; i++)
+                {
+                    sampleTex[i] = vec3(texture(tex, texCord.st + offsets[i]));
+                }
+                vec3 col = vec3(0.0);
+                for(int i = 0; i < 9; i++)
+                    col += sampleTex[i] * kernel[i];
+                return col;
+                }
+
+                vec3 apply_sharpness(sampler2D tex,vec2 texCord){
+                float kernel[9] = float[](
+                        -1, -1, -1,
+                        -1,  9, -1,
+                        -1, -1, -1
+                    );
+                vec2 offsets[9] = vec2[](
+                                vec2(-offset,  offset), // top-left
+                                vec2( 0.0f,    offset), // top-center
+                                vec2( offset,  offset), // top-right
+                                vec2(-offset,  0.0f),   // center-left
+                                vec2( 0.0f,    0.0f),   // center-center
+                                vec2( offset,  0.0f),   // center-right
+                                vec2(-offset, -offset), // bottom-left
+                                vec2( 0.0f,   -offset), // bottom-center
+                                vec2( offset, -offset)  // bottom-right    
+                            );
+                return apply_kernal(tex,texCord,kernel);
+                }
+             
+            )";
+        }
+    };
     struct UtilityFunctions {
         static std::string to_shader_str() {
             return  R"(
@@ -428,6 +482,9 @@ namespace gl {
     inline std::string get_core_defs() {
         return make_shader_defs_from<UtilityFunctions>(); 
     }
+    inline std::string get_kernel_defs() {
+        return make_shader_defs_from<Kernels>();
+    }
     inline auto replaced_str(const std::string& str, const std::string& first, const std::string& replaced) {
         std::regex ampreg(first);
         return  std::regex_replace(str, ampreg, replaced);
@@ -456,6 +513,17 @@ namespace gl {
                 }
                 if (v == "core") {
                     return get_core_defs();
+                }
+                if (v == "kernels") {
+                    return get_kernel_defs();
+                }
+                if (std::find_if(std::begin(v), std::end(v), [](auto c) {return c == '/'; }) != std::end(v)) {
+                    std::ifstream vShaderFile;
+                    std::ifstream fShaderFile;
+                    vShaderFile.open(v);
+                    std::stringstream str;
+                    str << vShaderFile.rdbuf();
+                    return replaced_str(str.str(),"#version 330 core","");
                 }
             }
            

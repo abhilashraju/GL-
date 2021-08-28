@@ -38,7 +38,7 @@ int main(int argc, char* argv[])
                         uniform mat4 model;
                         uniform mat4 view;
                         uniform mat4 projection;
-                    
+                      
                         void main()
                         {
                             TexCoords = aTexCoords;    
@@ -69,35 +69,102 @@ int main(int argc, char* argv[])
    
     
     auto shader = make_programme(make_shader(vshader, GL_VERTEX_SHADER), make_shader(objfshader, GL_FRAGMENT_SHADER))(on_failure);
-
-    auto screenShader = make_programme(make_shader(R"(
+    const char* vertexSS = R"(
         #version 330 core
         layout (location = 0) in vec2 aPos;
         layout (location = 1) in vec2 aTexCoords;
 
         out vec2 TexCoords;
-
+        uniform mat4 model;
+                        uniform mat4 view;
+                        uniform mat4 projection;
+        
         void main()
         {
             TexCoords = aTexCoords;
-            gl_Position = vec4(aPos.x, aPos.y, 0, 1.0); 
+            gl_Position = projection * view * model  *  vec4(aPos.x, aPos.y, 0, 1.0); 
         }  
-        )", GL_VERTEX_SHADER), 
+        )";
+    GProgramme screenShaders[] = {
+        make_programme(make_shader(vertexSS, GL_VERTEX_SHADER),
         make_shader(R"(
         #version 330 core
+        
+        #import ./images/fragshader.fs;
         out vec4 FragColor;
-
         in vec2 TexCoords;
-
         uniform sampler2D screenTexture;
-
         void main()
         {
-            vec3 col = texture(screenTexture, TexCoords).rgb;
-            FragColor = vec4(col, 1.0);
-            //FragColor=vec4(1,0,0,1);
+            FragColor = vec4(apply_inverted(screenTexture,TexCoords), 1.0);
         } 
-        )", GL_FRAGMENT_SHADER))(on_failure);
+        )", GL_FRAGMENT_SHADER))(on_failure),
+        make_programme(make_shader(vertexSS, GL_VERTEX_SHADER),
+        make_shader(R"(
+        #version 330 core
+        #import ./images/fragshader.fs;
+        out vec4 FragColor;
+        in vec2 TexCoords;
+        uniform sampler2D screenTexture;
+        void main()
+        {
+            FragColor = vec4(apply_sharpness(screenTexture,TexCoords), 1.0);
+        } 
+        )", GL_FRAGMENT_SHADER))(on_failure),
+        make_programme(make_shader(vertexSS, GL_VERTEX_SHADER),
+        make_shader(R"(
+        #version 330 core
+        #import ./images/fragshader.fs;
+        out vec4 FragColor;
+        in vec2 TexCoords;
+        uniform sampler2D screenTexture;
+        void main()
+        {
+           FragColor = vec4(apply_smoothness(screenTexture,TexCoords), 1.0);
+        } 
+        )", GL_FRAGMENT_SHADER))(on_failure),
+        make_programme(make_shader(vertexSS, GL_VERTEX_SHADER),
+        make_shader(R"(
+        #version 330 core
+        #import ./images/fragshader.fs;
+        out vec4 FragColor;
+        in vec2 TexCoords;
+        uniform sampler2D screenTexture;
+        void main()
+        {
+           FragColor = vec4(apply_edgefilter(screenTexture,TexCoords), 1.0);
+           
+        } 
+        )", GL_FRAGMENT_SHADER))(on_failure),
+        make_programme(make_shader(vertexSS, GL_VERTEX_SHADER),
+        make_shader(R"(
+        #version 330 core
+        #import ./images/fragshader.fs;
+        out vec4 FragColor;
+        in vec2 TexCoords;
+        uniform sampler2D screenTexture;
+        void main()
+        {
+           FragColor = vec4(apply_greyscale(screenTexture,TexCoords), 1.0);
+           
+        } 
+        )", GL_FRAGMENT_SHADER))(on_failure),
+        make_programme(make_shader(vertexSS, GL_VERTEX_SHADER),
+        make_shader(R"(
+        #version 330 core
+        #import ./images/fragshader.fs;
+        out vec4 FragColor;
+        in vec2 TexCoords;
+        uniform sampler2D screenTexture;
+        void main()
+        {
+           FragColor = vec4(apply_emboss(screenTexture,TexCoords), 1.0);
+           
+        } 
+        )", GL_FRAGMENT_SHADER))(on_failure),
+
+    };
+   
 
  
     float vertices[] = { // vertex attributes for a quad that fills the entire screen in Normalized Device Coordinates.
@@ -112,8 +179,7 @@ int main(int argc, char* argv[])
     };
     ArrayView quadVertices(vertices, sizeof(vertices) / sizeof(float));
     stbi_set_flip_vertically_on_load(true);
-    //Model ourModel("C:/Users/rabhil/work/GLplus/build/Debug/images/backpack.obj");
-    Model ourModel("C:/Users/rabhil/work/GLplus/build/Debug/images/light.obj");
+     Model ourModel("C:/Users/rabhil/work/GLplus/build/Debug/images/monkey.obj");
     VAOS<1> quadVAO;
     VBOS<1> quadVBO(GL_ARRAY_BUFFER);
     quadVAO.bind(0).execute([&](auto& vao) {
@@ -124,43 +190,67 @@ int main(int argc, char* argv[])
     });
     
     VFOS<1> vfos;
- 
-    auto error = vfos.prepare(0, win.width, win.height);
+    float picwd = 600;
+    float picht = 600;
+    auto error = vfos.prepare(0, picwd, picht);
     if (error) {
         std::cout << error.message()<<std::endl;
     }
+    Camera innercam{ glm::vec3(0.0f, 0.0f,2.0f) };
+    vfos.bind(0).execute([&](auto& fb) {
+
+        glClearColor(0.1f, 0.1f, 0.1f, 1.0f);
+        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+        glEnable(GL_DEPTH_TEST);
+        shader.use();
+        glm::mat4 model = glm::mat4(1.0f);
+        glm::mat4 view = innercam.GetViewMatrix();
+        glm::mat4 projection = glm::perspective(glm::radians(innercam.Zoom), picwd / picht, 0.1f, 100.0f);
+        shader.setUniformMatrix4("view", 1, false, glm::value_ptr(view));
+        shader.setUniformMatrix4("projection", 1, false, glm::value_ptr(projection));
+        shader.setUniformMatrix4("model", 1, false, glm::value_ptr(model));
+        ourModel.draw(shader);
+     });
     float lastFrame;
+    std::array<glm::vec3, 6> previewpos{
+        glm::vec3( -4, -1,-1),
+        glm::vec3(  0,-1,-1),
+        glm::vec3(  4,-1,-1),
+        glm::vec3( -4, 2,-1),
+        glm::vec3(  0,2,-1),
+        glm::vec3(  4,2,-1),
+        
+    };
+    win.cam.setPosition(0, 0, 8);
+   
     win.setRenderCallback([&]() {
         float currentFrame = glfwGetTime();
         float deltaTime = currentFrame - lastFrame;
         lastFrame = currentFrame;
-        vfos.bind(0).execute([&](auto& fb) {
-            
-            glClearColor(0.1f, 0.1f, 0.1f, 1.0f);
-            glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-            glEnable(GL_DEPTH_TEST);
-            shader.use();
-            glm::mat4 model = glm::mat4(1.0f);
-            glm::mat4 view = win.cam.GetViewMatrix();
-            glm::mat4 projection = glm::perspective(glm::radians(win.cam.Zoom), win.width / win.height, 0.1f, 100.0f);
-            shader.setUniformMatrix4("view", 1, false, glm::value_ptr(view));
-            shader.setUniformMatrix4("projection", 1, false, glm::value_ptr(projection));
-            model = glm::translate(model,glm::vec3(0, 0, -1));
-            model = glm::rotate(model, glm::radians(currentFrame * 15.0f), glm::vec3(0, 1, 0));
-            shader.setUniformMatrix4("model", 1, false, glm::value_ptr(model));
-            ourModel.draw(shader);
-         });
+        
         glDisable(GL_DEPTH_TEST);
         glClearColor(1.0f, 1.0f, 1.0f, 1.0f); // set clear color to white (not really necessary actually, since we won't be able to see behind the quad anyways)
         glClear(GL_COLOR_BUFFER_BIT);
-
-        screenShader.use();
-
-       
-        //
         glBindVertexArray(quadVAO[0]);
         glBindTexture(GL_TEXTURE_2D, vfos.texture(0));	// use the color attachment texture as the texture of the quad plane
-        glDrawArrays(GL_TRIANGLES, 0, 6);
+        
+       
+        glm::mat4 view = win.cam.GetViewMatrix();
+        glm::mat4 projection = glm::perspective(glm::radians(win.cam.Zoom), win.width / win.height, 0.1f, 100.0f);
+        int i = 0;
+        int maxShaders = sizeof(screenShaders) / sizeof(GProgramme);
+        for (auto p : previewpos) {
+            glm::mat4 model = glm::mat4(1.0f);
+            model = glm::translate(model,p);
+            screenShaders[i % maxShaders].use();
+            screenShaders[i % maxShaders].setUniformMatrix4("view", 1, false, glm::value_ptr(view));
+            screenShaders[i % maxShaders].setUniformMatrix4("projection", 1, false, glm::value_ptr(projection));
+            //model = glm::rotate(model, glm::radians(currentFrame * 15.0f), glm::vec3(0, 1, 0));
+            screenShaders[i % maxShaders].setUniformMatrix4("model", 1, false, glm::value_ptr(model));
+            glDrawArrays(GL_TRIANGLES, 0, 6);
+            i++;
+        }
+       
 
      });
   

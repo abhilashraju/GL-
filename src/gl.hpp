@@ -646,7 +646,8 @@ namespace gl {
                 auto rb = rbos.bind(0);
                 rb.glRenderbufferStorage(GL_DEPTH24_STENCIL8, wid, ht);
                 fb.glFramebufferRenderbuffer(GL_DEPTH_STENCIL_ATTACHMENT, GL_RENDERBUFFER, rbos[0]);
-                ec=GerrorCode::FboCompletionError;
+                if(!fb.glCheckFramebufferStatus())
+                    ec=GerrorCode::FboCompletionError;
                
             });
             return ec;

@@ -78,6 +78,7 @@ public:
             Position -= Right * velocity;
         if (direction == RIGHT)
             Position += Right * velocity;
+        updateCameraVectors();
     }
 
     // processes input received from a mouse input system. Expects the offset value in both the x and y direction.
@@ -116,8 +117,12 @@ public:
         else {
             Position.z -= 1;
         }
+        updateCameraVectors();
     }
-
+    void setPosition(float x, float y, float z) {
+        Position = glm::vec3(x, y, z);
+        updateCameraVectors();
+    }
 private:
     // calculates the front vector from the Camera's (updated) Euler Angles
     void updateCameraVectors()
