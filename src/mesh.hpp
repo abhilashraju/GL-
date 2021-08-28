@@ -89,7 +89,7 @@ public:
         }
         
         // draw mesh
-        vao.bind(0).execute([&]{
+        vao.bind(0).execute([&](const auto&){
            auto e = veo.bind(0);
             glDrawElements(GL_TRIANGLES, indices.size(), GL_UNSIGNED_INT, 0);
         });

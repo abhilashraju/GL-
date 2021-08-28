@@ -156,7 +156,7 @@ int main(int argc, char* argv[])
 
         };
     
-        vao.bind(0).execute([&] {
+        vao.bind(0).execute([&](auto&) {
            
                 glActiveTexture(GL_TEXTURE0);
                 auto t = vto.bind(0);

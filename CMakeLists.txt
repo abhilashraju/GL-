@@ -17,7 +17,8 @@ set(SOURCES
     # ${PROJECT_SOURCE_DIR}/examples/example1.cpp
     # ${PROJECT_SOURCE_DIR}/examples/transformation.cpp
     # ${PROJECT_SOURCE_DIR}/examples/lighting.cpp
-    ${PROJECT_SOURCE_DIR}/examples/model_loading.cpp
+    # ${PROJECT_SOURCE_DIR}/examples/model_loading.cpp
+    ${PROJECT_SOURCE_DIR}/examples/framebuffer.cpp
     ${PROJECT_SOURCE_DIR}/examples/glad.c
 )
 add_executable(GLplus ${SOURCES})

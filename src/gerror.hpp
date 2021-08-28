@@ -4,14 +4,17 @@ namespace gl {
     enum class GerrorCode
     {
         // no 0
+        Success = 0,
         ShaderError = 10,
         ProgrammeError,
-        BufferBinderror,
+        BufferBindError,
+        FboCompletionError,
     };
     enum class GerrorSource
     {
         ShaderCompilation = 10,
         VertexBuffer,
+        FrameBuffer,
     };
 }
 namespace std
@@ -38,7 +41,10 @@ namespace gl {
             case GerrorCode::ProgrammeError: {
                 return "error while compiling programme linking";
             }
-
+            case GerrorCode::FboCompletionError: {
+                return "Framebuffer is not complete!";
+            }
+                                           
             default:
                 break;
             }
@@ -78,7 +84,10 @@ namespace gl {
                 return code == GerrorCode::ShaderError || code == GerrorCode::ProgrammeError;
                 break;
             case GerrorSource::VertexBuffer:
-                return code == GerrorCode::BufferBinderror;
+                return code == GerrorCode::BufferBindError;
+                break;
+            case GerrorSource::FrameBuffer:
+                return code == GerrorCode::BufferBindError;
                 break;
             default:
                 break;

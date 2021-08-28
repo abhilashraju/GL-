@@ -135,8 +135,8 @@ int main(int argc, char* argv[])
 
 
 
-        vao.bind(0).execute([&] {
-            ebo.bind(0).execute([&] {
+        vao.bind(0).execute([&](auto&) {
+            ebo.bind(0).execute([&](auto&) {
                 glActiveTexture(GL_TEXTURE0);
                 auto t = vto.bind(0);
                 glActiveTexture(GL_TEXTURE1);
@@ -152,8 +152,8 @@ int main(int argc, char* argv[])
 
 
         
-        vao.bind(1).execute([&] {
-            ebo.bind(1).execute([&] {
+        vao.bind(1).execute([&](auto&) {
+            ebo.bind(1).execute([&](auto&) {
                 shaderProgram2.use();
                 //glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
                 glDrawElements(GL_TRIANGLES, 3, GL_UNSIGNED_INT, 0);

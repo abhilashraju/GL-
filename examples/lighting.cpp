@@ -281,7 +281,7 @@ int main(int argc, char* argv[])
             light.setMaterial(spotlighmaterial);
             light.setDistanceRange(lightintesity);
         }
-        vao.bind(0).execute([&] {
+        vao.bind(0).execute([&](auto& va) {
                 auto t1=vto.glActiveTexture(0);
                 auto t2=vto.glActiveTexture(1);    
                 auto t3=vto.glActiveTexture(2);
@@ -322,7 +322,7 @@ int main(int argc, char* argv[])
             
             });
 
-        vao.bind(1).execute([&] {
+        vao.bind(1).execute([&](auto&) {
            
             shaderProgram2.use();
             shaderProgram2.setUniformMatrix4("view", 1, GL_FALSE, glm::value_ptr(view));

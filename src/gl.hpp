@@ -298,13 +298,13 @@ namespace gl {
                 index = o.index;
                 o.index = -1;
             }
-            Bounded& glBufferData(GLsizeiptr size, const void* data, GLenum usage) {
+            const Bounded& glBufferData(GLsizeiptr size, const void* data, GLenum usage)const {
                 ::glBufferData(target, size, data, usage);
                 return *this;;
 
             }
             template <typename Buffer>
-            Bounded& glBufferData(Buffer buff, GLenum usage) {
+            const Bounded& glBufferData(Buffer buff, GLenum usage)const {
 
                 ::glBufferData(target, buff.size() * sizeof(Buffer::value_type), buff.data(), usage);
                 return *this;
@@ -312,10 +312,10 @@ namespace gl {
             }
             template<typename Func>
             void execute(Func func)const {
-                func();
+                func(*this);
             }
             template<typename Func>
-            void operator()(Func func) {
+            void operator()(Func func)const {
                 execute(std::move(func));
             }
         };
@@ -362,7 +362,7 @@ namespace gl {
                 o.index = -1;
             }
 
-            Bounded& glVertexAttribPointer(GLuint index, GLint size, GLenum type, GLboolean normalized, int  stridec, int offset)
+            const Bounded& glVertexAttribPointer(GLuint index, GLint size, GLenum type, GLboolean normalized, int  stridec, int offset)const
             {
                 auto get_stride_offset = [&]()->std::pair<int, void*> {
 
@@ -385,17 +385,17 @@ namespace gl {
                     }
                     return std::pair<int, void*>(stridec * sizeof(bool), (void*)(offset * sizeof(bool)));
                 }();
-
-                ::glVertexAttribPointer(index, size, type, normalized, get_stride_offset.first, get_stride_offset.second);
                 glEnableVertexAttribArray(index);
+                ::glVertexAttribPointer(index, size, type, normalized, get_stride_offset.first, get_stride_offset.second);
+                
                 return *this;
             }
             template<typename Func>
             void execute(Func func)const {
-                func();
+                func(*this);
             }
             template<typename Func>
-            void operator()(Func func) {
+            void operator()(Func func)const {
                 execute(std::move(func));
             }
 
@@ -437,7 +437,6 @@ namespace gl {
                 glTexParameteri(GL_TEXTURE_WRAP_T, GL_REPEAT);
                 glTexParameteri(GL_TEXTURE_MIN_FILTER, GL_LINEAR);
                 glTexParameteri(GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-                glTexParameteri(GL_TEXTURE_MAG_FILTER, GL_LINEAR);
             }
             ~Bounded() {
                 if (index >= 0) {
@@ -449,21 +448,25 @@ namespace gl {
                 index = o.index;
                 o.index = -1;
             }
-            bool glTexImage2D(GLint level,GLint internalformat,GLenum format,GLenum type,const char* imagePath) {
+            const Bounded& glTexImage2D(GLint level,GLint internalformat,GLenum format,GLenum type,const char* imagePath)const {
                 int width=0,height=0,nrChannels = 0;
-                stbi_set_flip_vertically_on_load(true);
-                unsigned char* data = stbi_load(imagePath, &width, &height, &nrChannels, 0);
-                if (data) {
-                    ::glTexImage2D(target, level, internalformat, width, height, 0, format, type, data);
-                    stbi_image_free(data);
-                    return true;
+               
+                if(imagePath){
+                    stbi_set_flip_vertically_on_load(true);
+                    unsigned char* data = stbi_load(imagePath, &width, &height, &nrChannels, 0);
+                    if (data) {
+                        ::glTexImage2D(target, level, internalformat, width, height, 0, format, type, data);
+                        stbi_image_free(data);  
+                        return *this;
+                    }
                 }
-                return false;
+                ::glTexImage2D(target, level, internalformat, width, height, 0, format, type, nullptr);
+                return *this;
             }
-            bool glTexImage2D(GLint level, GLint internalformat, GLsizei width, GLsizei height, GLint border, GLenum format, GLenum type, const void* pixels) {
+            const Bounded& glTexImage2D(GLint level, GLint internalformat, GLsizei width, GLsizei height, GLint border, GLenum format, GLenum type, const void* pixels)const {
                 ::glTexImage2D(target, level, internalformat, width, height, border, format, type, pixels);
                 glGenerateMipmap(target);
-                return true;
+                return *this;
             }
             const Bounded& glTexParameteri(GLenum p1, GLenum p2)const {
                 ::glTexParameteri(target, p1, p2);
@@ -509,5 +512,148 @@ namespace gl {
 
     };
    
+    
+    template<size_t SIZE>
+    struct RBOS {
+        struct Bounded {
+            unsigned index{ -1 };
+            GLenum target{ GL_FRAMEBUFFER };
+            explicit Bounded(unsigned i, GLenum t) :index(i), target(t) {}
+            ~Bounded() {
+                if (index >= 0) {
+                    glBindRenderbuffer(target, 0);
+                }
+            }
+            Bounded(const Bounded&) = delete;
+            Bounded(Bounded&& o) {
+                index = o.index;
+                o.index = -1;
+            }
+            const Bounded& glRenderbufferStorage(GLenum internalformat, GLsizei width, GLsizei height)const {
+                ::glRenderbufferStorage(target, internalformat, width, height);
+                return *this;;
+            }
 
+            const Bounded& glFramebufferRenderbuffer(GLenum attachment, GLenum renderbuffertarget, GLuint renderbuffer)const {
+                ::glFramebufferRenderbuffer(target, attachment, renderbuffertarget, renderbuffer);
+                return *this;
+            }
+            template<typename Func>
+            void execute(Func func)const {
+                func(*this);
+            }
+            template<typename Func>
+            void operator()(Func func)const {
+                execute(std::move(func));
+            }
+        };
+        std::array<GLuint, SIZE> rbos;
+
+        bool cleared{ false };
+        RBOS() {
+            glGenRenderbuffers(rbos.size(), rbos.data());
+        }
+        ~RBOS() {
+            if (!cleared) {
+                glDeleteBuffers(rbos.size(), rbos.data());
+            }
+
+        }
+        RBOS(RBOS&& o) {
+            rbos = std::move(o.rbos);
+            o.cleared = true;
+        }
+        RBOS(const RBOS&) = delete;
+        RBOS& operator=(const RBOS&) = delete;
+        GLuint& operator[](int index) { assert(index >= 0 && index < rbos.size()); return rbos[index]; }
+        [[nodiscard]] Bounded bind(unsigned index) {
+            assert(index >= 0 && index < rbos.size());
+            glBindRenderbuffer(GL_RENDERBUFFER, rbos[index]);
+            return Bounded{ index ,GL_RENDERBUFFER };
+        }
+
+    };
+    template<size_t SIZE>
+    struct VFOS {
+        struct Bounded {
+            unsigned index{ -1 };
+            GLenum target{ GL_FRAMEBUFFER };
+            explicit Bounded(unsigned i, GLenum t) :index(i), target(t) {}
+            ~Bounded() {
+                if (index >= 0) {
+                    glBindFramebuffer(target, 0);
+                }
+            }
+            Bounded(const Bounded&) = delete;
+            Bounded(Bounded&& o) {
+                index = o.index;
+                o.index = -1;
+            }
+            const Bounded& glFramebufferTexture2D(GLenum attachment, GLenum textarget, GLuint texture, GLint level)const {
+                ::glFramebufferTexture2D(target, attachment, textarget, texture, level);
+                return *this;;
+            }
+
+            const Bounded& glFramebufferRenderbuffer(GLenum attachment, GLenum renderbuffertarget, GLuint renderbuffer)const {
+                ::glFramebufferRenderbuffer(target, attachment, renderbuffertarget, renderbuffer);
+                return *this;
+            }
+            bool glCheckFramebufferStatus()const {
+                return ::glCheckFramebufferStatus(target) == GL_FRAMEBUFFER_COMPLETE;
+            }
+            template<typename Func>
+            void execute(Func func)const {
+                func(*this);
+            }
+            template<typename Func>
+            void operator()(Func func)const {
+                execute(std::move(func));
+            }
+        };
+        std::array<GLuint, SIZE> vfos;
+        VTOS<SIZE> vtos{ GL_TEXTURE_2D };
+        RBOS<SIZE> rbos;
+
+        bool cleared{ false };
+        VFOS() {
+            glGenFramebuffers(vfos.size(), vfos.data());
+        }
+        ~VFOS() {
+            if (!cleared) {
+                glDeleteBuffers(vfos.size(), vfos.data());
+            }
+
+        }
+        VFOS(VFOS&& o) {
+            vfos = std::move(o.vfos);
+            o.cleared = true;
+        }
+        VFOS(const VFOS&) = delete;
+        VFOS& operator=(const VFOS&) = delete;
+        GLuint& operator[](int index) { assert(index >= 0 && index < vfos.size()); return vfos[index]; }
+        [[nodiscard]] Bounded bind(unsigned index) {
+            assert(index >= 0 && index < vfos.size());
+            glBindFramebuffer(GL_FRAMEBUFFER, vfos[index]);
+            return Bounded{ index ,GL_FRAMEBUFFER };
+        }
+
+        std::error_code prepare(int index, GLuint wid, GLuint ht) {
+            std::error_code ec= GerrorCode::Success;
+               bind(0).execute([&](auto& fb) {
+                auto tb = vtos.bind(0);
+                tb.glTexImage2D(0, GL_RGB, wid, ht, 0, GL_RGB, GL_UNSIGNED_BYTE, NULL);
+                fb.glFramebufferTexture2D(GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, vtos[0], 0);
+                auto rb = rbos.bind(0);
+                rb.glRenderbufferStorage(GL_DEPTH24_STENCIL8, wid, ht);
+                fb.glFramebufferRenderbuffer(GL_DEPTH_STENCIL_ATTACHMENT, GL_RENDERBUFFER, rbos[0]);
+                ec=GerrorCode::FboCompletionError;
+               
+            });
+            return ec;
+        }
+        GLuint texture(GLuint index) {
+            return vtos[index];
+        }
+
+    };
 }
