@@ -1,5 +1,5 @@
 # GLPlus
-An OpenGL library for C++ developers. My attempt is to give an easy to use, intuitive wrapper APIs for OPengGL and GLFW calls. Hopefully, this will help  OpenGL developers to use modern C++ style APIs in their applications.  
+An OpenGL library for C++ developers. My attempt is to give an easy to use, intuitive wrapper APIs for OpenGL and GLFW calls. Hopefully, this will help  OpenGL developers to use modern C++ style APIs in their applications.  The libray supports extending shader language by adding your own reusable types and functions by means of  #import keyword. The the extended shader libray comes with various lighting objects and reusable kernels for image enhancements.
 
 ![Kernels](https://github.com/abhilashraju/GLplus/blob/main/demo/example.gif)
 

@@ -180,10 +180,10 @@ int main(int argc, char* argv[])
     ArrayView quadVertices(vertices, sizeof(vertices) / sizeof(float));
     stbi_set_flip_vertically_on_load(true);
      Model ourModel("C:/Users/rabhil/work/GLplus/build/Debug/images/monkey.obj");
-    VAOS<1> quadVAO;
-    VBOS<1> quadVBO(GL_ARRAY_BUFFER);
-    quadVAO.bind(0).execute([&](auto& vao) {
-        auto b = quadVBO.bind(0);
+    VAO quadVAO;
+    VBO quadVBO(GL_ARRAY_BUFFER);
+    quadVAO.bind().execute([&](auto& vao) {
+        auto b = quadVBO.bind();
         b.glBufferData(quadVertices, GL_STATIC_DRAW);
         vao.glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, 4, 0);
         vao.glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 4, 2);
@@ -231,7 +231,7 @@ int main(int argc, char* argv[])
         glDisable(GL_DEPTH_TEST);
         glClearColor(1.0f, 1.0f, 1.0f, 1.0f); // set clear color to white (not really necessary actually, since we won't be able to see behind the quad anyways)
         glClear(GL_COLOR_BUFFER_BIT);
-        glBindVertexArray(quadVAO[0]);
+        glBindVertexArray(*quadVAO);
         glBindTexture(GL_TEXTURE_2D, vfos.texture());	// use the color attachment texture as the texture of the quad plane
         
        
