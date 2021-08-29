@@ -282,6 +282,23 @@ namespace gl {
             return pgm;
         };
     }
+    template<template<size_t> typename BO>
+    struct SingularBO
+    {
+        
+        BO<1> object;
+        SingularBO() {}
+        template<typename... Args>
+        SingularBO(Args&&... args):object(std::forward<Args>(args)...){}
+        SingularBO(const SingularBO&) = delete;
+        SingularBO& operator=(const SingularBO&) = delete;
+        [[nodiscard]] auto bind() {
+           return object.bind(0);
+        }
+        auto& operator*() {
+            return object[0];
+        }
+    };
     template<size_t SIZE>
     struct VBOS {
         struct Bounded {
@@ -346,6 +363,7 @@ namespace gl {
         }
 
     };
+    using VBO=SingularBO<VBOS>;
     template<size_t SIZE>
     struct VAOS {
         struct Bounded {
@@ -426,7 +444,7 @@ namespace gl {
 
 
     };
-
+    using VAO=SingularBO<VAOS>;
     template<size_t SIZE>
     struct VTOS {
         struct Bounded {
@@ -511,7 +529,11 @@ namespace gl {
         }
 
     };
-   
+    struct VTO:SingularBO<VTOS>{
+        [[nodiscard]]  auto glActiveTexture(unsigned index){
+           return object.glActiveTexture(index);
+        }
+    };
     
     template<size_t SIZE>
     struct RBOS {
@@ -573,6 +595,7 @@ namespace gl {
         }
 
     };
+    using RBO=SingularBO<RBOS>;
     template<size_t SIZE>
     struct FBOS {
         struct Bounded {
@@ -657,20 +680,7 @@ namespace gl {
         }
 
     };
-    template<template<size_t> typename BO>
-    struct SingularBO
-    {
-        
-        BO<1> object;
-        SingularBO() {}
-        template<typename... Args>
-        SingularBO(Args&&... args):object(std::forward<Args>(args)...){}
-        SingularBO(const SingularBO&) = delete;
-        SingularBO& operator=(const SingularBO&) = delete;
-        [[nodiscard]] auto bind() {
-           return object.bind(0);
-        }
-    };
+    
     struct FBO :SingularBO<FBOS>
     {
         GLuint texture() {
