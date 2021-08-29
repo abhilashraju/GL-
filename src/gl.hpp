@@ -574,7 +574,7 @@ namespace gl {
 
     };
     template<size_t SIZE>
-    struct VFOS {
+    struct FBOS {
         struct Bounded {
             unsigned index{ -1 };
             GLenum target{ GL_FRAMEBUFFER };
@@ -615,21 +615,21 @@ namespace gl {
         RBOS<SIZE> rbos;
 
         bool cleared{ false };
-        VFOS() {
+        FBOS() {
             glGenFramebuffers(vfos.size(), vfos.data());
         }
-        ~VFOS() {
+        ~FBOS() {
             if (!cleared) {
                 glDeleteBuffers(vfos.size(), vfos.data());
             }
 
         }
-        VFOS(VFOS&& o) {
+        FBOS(FBOS&& o) {
             vfos = std::move(o.vfos);
             o.cleared = true;
         }
-        VFOS(const VFOS&) = delete;
-        VFOS& operator=(const VFOS&) = delete;
+        FBOS(const FBOS&) = delete;
+        FBOS& operator=(const FBOS&) = delete;
         GLuint& operator[](int index) { assert(index >= 0 && index < vfos.size()); return vfos[index]; }
         [[nodiscard]] Bounded bind(unsigned index) {
             assert(index >= 0 && index < vfos.size());
@@ -654,6 +654,30 @@ namespace gl {
         }
         GLuint texture(GLuint index) {
             return vtos[index];
+        }
+
+    };
+    template<template<size_t> typename BO>
+    struct SingularBO
+    {
+        
+        BO<1> object;
+        SingularBO() {}
+        template<typename... Args>
+        SingularBO(Args&&... args):object(std::forward<Args>(args)...){}
+        SingularBO(const SingularBO&) = delete;
+        SingularBO& operator=(const SingularBO&) = delete;
+        [[nodiscard]] auto bind() {
+           return object.bind(0);
+        }
+    };
+    struct FBO :SingularBO<FBOS>
+    {
+        GLuint texture() {
+            return object.texture(0);
+        }
+        auto prepare(GLuint wid, GLuint ht) {
+            return object.prepare(0, wid, ht);
         }
 
     };

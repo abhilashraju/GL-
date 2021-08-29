@@ -1,5 +1,8 @@
 # GLPlus
 An OpenGL library for C++ developers. My attempt is to give an easy to use, intuitive wrapper APIs for OPengGL and GLFW calls. Hopefully, this will help  OpenGL developers to use modern C++ style APIs in their applications.  
+
+![Kernels](https://github.com/abhilashraju/GLplus/blob/main/demo/example.gif)
+
 See below for example creation of GLwindow
 ```
 int main(int argc, char* argv[])

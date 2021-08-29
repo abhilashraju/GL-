@@ -189,15 +189,15 @@ int main(int argc, char* argv[])
         vao.glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 4, 2);
     });
     
-    VFOS<1> vfos;
+    FBO vfos;
     float picwd = 600;
     float picht = 600;
-    auto error = vfos.prepare(0, picwd, picht);
+    auto error = vfos.prepare( picwd, picht);
     if (error) {
         std::cout << error.message()<<std::endl;
     }
     Camera innercam{ glm::vec3(0.0f, 0.0f,2.0f) };
-    vfos.bind(0).execute([&](auto& fb) {
+    vfos.bind().execute([&](auto& fb) {
 
         glClearColor(0.1f, 0.1f, 0.1f, 1.0f);
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
@@ -232,7 +232,7 @@ int main(int argc, char* argv[])
         glClearColor(1.0f, 1.0f, 1.0f, 1.0f); // set clear color to white (not really necessary actually, since we won't be able to see behind the quad anyways)
         glClear(GL_COLOR_BUFFER_BIT);
         glBindVertexArray(quadVAO[0]);
-        glBindTexture(GL_TEXTURE_2D, vfos.texture(0));	// use the color attachment texture as the texture of the quad plane
+        glBindTexture(GL_TEXTURE_2D, vfos.texture());	// use the color attachment texture as the texture of the quad plane
         
        
         glm::mat4 view = win.cam.GetViewMatrix();
@@ -245,7 +245,7 @@ int main(int argc, char* argv[])
             screenShaders[i % maxShaders].use();
             screenShaders[i % maxShaders].setUniformMatrix4("view", 1, false, glm::value_ptr(view));
             screenShaders[i % maxShaders].setUniformMatrix4("projection", 1, false, glm::value_ptr(projection));
-            //model = glm::rotate(model, glm::radians(currentFrame * 15.0f), glm::vec3(0, 1, 0));
+            model = glm::rotate(model, glm::radians(currentFrame * 15.0f), glm::vec3(0, 1, 0));
             screenShaders[i % maxShaders].setUniformMatrix4("model", 1, false, glm::value_ptr(model));
             glDrawArrays(GL_TRIANGLES, 0, 6);
             i++;
