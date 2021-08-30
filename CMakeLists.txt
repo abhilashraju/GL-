@@ -1,6 +1,5 @@
 cmake_minimum_required(VERSION 3.1)
 
-
 project (GLplus)
 find_package(OpenGL REQUIRED)
 link_directories(${OPENGL_gl_LIBRARY})
@@ -18,7 +17,8 @@ set(SOURCES
     # ${PROJECT_SOURCE_DIR}/examples/transformation.cpp
     # ${PROJECT_SOURCE_DIR}/examples/lighting.cpp
     # ${PROJECT_SOURCE_DIR}/examples/model_loading.cpp
-    ${PROJECT_SOURCE_DIR}/examples/framebuffer.cpp
+    # ${PROJECT_SOURCE_DIR}/examples/framebuffer.cpp
+    ${PROJECT_SOURCE_DIR}/examples/cubebox.cpp
     ${PROJECT_SOURCE_DIR}/examples/glad.c
 )
 add_executable(GLplus ${SOURCES})
@@ -44,3 +44,12 @@ target_link_directories(GLplus
     ${PROJECT_SOURCE_DIR}/libs/glfw-3.3.4.bin.WIN64/lib-vc2019
     ${PROJECT_SOURCE_DIR}/libs/assimp
     )
+
+set (source "${CMAKE_SOURCE_DIR}/resources")
+set (destination "${CMAKE_CURRENT_BINARY_DIR}/Debug/resources")
+add_custom_command(
+    TARGET ${PROJECT_NAME} POST_BUILD
+    COMMAND ${CMAKE_COMMAND} -E create_symlink ${source} ${destination} 
+    DEPENDS ${destination}
+    COMMENT "symbolic link resources folder from ${source} => ${destination}"
+)

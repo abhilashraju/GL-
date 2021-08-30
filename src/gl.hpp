@@ -1,4 +1,27 @@
 #pragma once
+/*
+MIT License
+
+Copyright (c) 2021 abhilashraju
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+*/
 #include "glad/glad.h"
 
 #include <iostream>
@@ -47,20 +70,6 @@ namespace gl {
         static const auto args4() { return glUniform4ui; }
     };
 
-    /*template <typename Func>
-    std::string replace(std::string s, std::regex  reg, Func func) {
-        std::smatch match;
-        bool stop = false;
-        while (!stop && std::regex_search(s, match, reg)) {
-            std::string param = match.str();
-            std::string formatter = "$`";
-            formatter += func(boost::string_view{ param.c_str() + 1,param.length() - 2 }, stop);
-            formatter += "$'";
-            s = match.format(
-                formatter);
-        }
-        return s;
-    }*/
    
     struct GShader
     {
@@ -291,6 +300,7 @@ namespace gl {
         template<typename... Args>
         SingularBO(Args&&... args):object(std::forward<Args>(args)...){}
         SingularBO(const SingularBO&) = delete;
+        SingularBO(SingularBO&&) = default;
         SingularBO& operator=(const SingularBO&) = delete;
         [[nodiscard]] auto bind() {
            return object.bind(0);
@@ -450,7 +460,8 @@ namespace gl {
         struct Bounded {
             unsigned index{ -1 };
             GLenum target;
-            explicit Bounded(unsigned i, GLenum t) :index(i), target(t) {
+            mutable GLenum textureenum;
+            explicit Bounded(unsigned i, GLenum t, GLenum te) :index(i), target(t), textureenum(te){
                 glTexParameteri(GL_TEXTURE_WRAP_S, GL_REPEAT);
                 glTexParameteri(GL_TEXTURE_WRAP_T, GL_REPEAT);
                 glTexParameteri(GL_TEXTURE_MIN_FILTER, GL_LINEAR);
@@ -464,16 +475,49 @@ namespace gl {
             Bounded(const Bounded&) = delete;
             Bounded(Bounded&& o) {
                 index = o.index;
+                target = o.target;
+                textureenum = o.textureenum;
                 o.index = -1;
+            }
+            void next()const{
+                textureenum +=1;
+            }
+            template<typename Func>
+            void execute(Func func)const {
+                func(*this);
+            }
+            template<typename Func>
+            void operator()(Func func)const {
+                execute(std::move(func));
+            }
+            const Bounded& glTexImage2D(GLint level,GLenum type,const std::string& imagePath)const {
+                int width=0,height=0,nrChannels = 0;
+               
+                if(!imagePath.empty()){
+                    
+                    unsigned char* data = stbi_load(imagePath.c_str(), &width, &height, &nrChannels, 0);
+                    if (data) {
+                        GLenum format;
+                        if (nrChannels == 1)
+                            format = GL_RED;
+                        else if (nrChannels == 3)
+                            format = GL_RGB;
+                        else if (nrChannels == 4)
+                            format = GL_RGBA;
+                        glTexImage2D(level, format, width, height, 0, format, type, data);
+                        stbi_image_free(data);  
+                    }
+                }
+                return *this;
             }
             const Bounded& glTexImage2D(GLint level,GLint internalformat,GLenum format,GLenum type,const char* imagePath)const {
                 int width=0,height=0,nrChannels = 0;
                
                 if(imagePath){
-                    stbi_set_flip_vertically_on_load(true);
+                    
                     unsigned char* data = stbi_load(imagePath, &width, &height, &nrChannels, 0);
                     if (data) {
-                        ::glTexImage2D(target, level, internalformat, width, height, 0, format, type, data);
+                        glTexImage2D( level, internalformat, width, height, 0, format, type, data);
                         stbi_image_free(data);  
                         return *this;
                     }
@@ -482,7 +526,7 @@ namespace gl {
                 return *this;
             }
             const Bounded& glTexImage2D(GLint level, GLint internalformat, GLsizei width, GLsizei height, GLint border, GLenum format, GLenum type, const void* pixels)const {
-                ::glTexImage2D(target, level, internalformat, width, height, border, format, type, pixels);
+                ::glTexImage2D(textureenum, level, internalformat, width, height, border, format, type, pixels);
                 glGenerateMipmap(target);
                 return *this;
             }
@@ -493,6 +537,7 @@ namespace gl {
             
             
         };
+
         std::vector<GLuint> vtos;
         
         GLenum target;
@@ -520,7 +565,7 @@ namespace gl {
         [[nodiscard]] Bounded bind(unsigned index) {
             assert(index >= 0 && index < vtos.size());
             glBindTexture(target, vtos[index]);
-            return Bounded{ index ,target };
+            return Bounded{ index ,target,(target==GL_TEXTURE_CUBE_MAP)?GL_TEXTURE_CUBE_MAP_POSITIVE_X:target};
         }
         [[nodiscard]]  Bounded glActiveTexture(unsigned index){
             
@@ -533,6 +578,8 @@ namespace gl {
         [[nodiscard]]  auto glActiveTexture(unsigned index){
            return object.glActiveTexture(index);
         }
+       
+        VTO(GLenum t) :SingularBO<VTOS>(t) {}
     };
     
     template<size_t SIZE>

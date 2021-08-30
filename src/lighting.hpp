@@ -6,6 +6,9 @@
 #include <regex>
 #include <lighting.hpp>
 #include <vector>
+#include <fstream>
+#include <string>
+#include <filesystem>
 namespace gl {
     struct GProgramme;
    
@@ -519,7 +522,6 @@ namespace gl {
                 }
                 if (std::find_if(std::begin(v), std::end(v), [](auto c) {return c == '/'; }) != std::end(v)) {
                     std::ifstream vShaderFile;
-                    std::ifstream fShaderFile;
                     vShaderFile.open(v);
                     std::stringstream str;
                     str << vShaderFile.rdbuf();
