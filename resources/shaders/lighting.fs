@@ -12,8 +12,8 @@ vec3 calculate_reflect(vec3 position,vec3 campos,vec3 N)
  vec3 dirvec=normalize(position-campos);
  return reflect(dirvec,normalize(N));
 }
-vec3 calculate_refract(vec3 position,vec3 campos,vec3 N,float frindx,float torndx)
+vec3 calculate_refract(vec3 position,vec3 campos,vec3 N,int frindx,int torndx)
 {
     vec3 dirvec=normalize(position-campos);
-    return refract(dirvec,normalize(N),frindx/torndx);
+    return refract(dirvec,normalize(N),refindices[frindx]/refindices[torndx]);
 }

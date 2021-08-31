@@ -79,9 +79,12 @@ int main(int argc, char* argv[])
     const char* vshader = R"(
                         #version 330 core
                         layout (location = 0) in vec3 aPos;
-                        layout (location = 1) in vec2 aTexCoords;
+                        
+                        layout (location = 1) in vec3 aNormal;
 
-                        out vec2 TexCoords;
+                        
+                        out vec3 Normal;
+                        out vec3 Position;
 
                         uniform mat4 model;
                         uniform mat4 view;
@@ -89,23 +92,29 @@ int main(int argc, char* argv[])
 
                         void main()
                         {
-                            TexCoords = aTexCoords;    
-                            gl_Position = projection * view * model * vec4(aPos, 1.0);
+                             
+                            Position=   vec3(model * vec4(aPos, 1.0));
+                            gl_Position = projection * view * vec4(Position,1);
+                            Normal = mat3(transpose(inverse(model)))*aNormal;
                         }
                         )";
 
     const char* objfshader = R"(
                     
                             #version 330 core
+                            #import ../resources/shaders/lighting.fs;
                             out vec4 FragColor;
 
-                            in vec2 TexCoords;
+                            in vec3 Normal;
+                            in vec3 Position;
 
-                            uniform sampler2D texture1;
+                            uniform vec3 cameraPos;
+                            uniform samplerCube skybox;
 
                             void main()
-                            {    
-                                FragColor = texture(texture1, TexCoords);
+                            {             
+                              
+                                FragColor = vec4(texture(skybox, calculate_refract(Position,cameraPos,Normal,0,3)).rgb, 1.0);
                             }
                     )";
   
@@ -146,48 +155,47 @@ int main(int argc, char* argv[])
     )", GL_FRAGMENT_SHADER))(on_failure);
    
     float cvertices[] = {
-        // positions          // texture Coords
-        -0.5f, -0.5f, -0.5f,  0.0f, 0.0f,
-         0.5f, -0.5f, -0.5f,  1.0f, 0.0f,
-         0.5f,  0.5f, -0.5f,  1.0f, 1.0f,
-         0.5f,  0.5f, -0.5f,  1.0f, 1.0f,
-        -0.5f,  0.5f, -0.5f,  0.0f, 1.0f,
-        -0.5f, -0.5f, -0.5f,  0.0f, 0.0f,
+    -0.5f, -0.5f, -0.5f,  0.0f,  0.0f, -1.0f,
+     0.5f, -0.5f, -0.5f,  0.0f,  0.0f, -1.0f,
+     0.5f,  0.5f, -0.5f,  0.0f,  0.0f, -1.0f,
+     0.5f,  0.5f, -0.5f,  0.0f,  0.0f, -1.0f,
+    -0.5f,  0.5f, -0.5f,  0.0f,  0.0f, -1.0f,
+    -0.5f, -0.5f, -0.5f,  0.0f,  0.0f, -1.0f,
 
-        -0.5f, -0.5f,  0.5f,  0.0f, 0.0f,
-         0.5f, -0.5f,  0.5f,  1.0f, 0.0f,
-         0.5f,  0.5f,  0.5f,  1.0f, 1.0f,
-         0.5f,  0.5f,  0.5f,  1.0f, 1.0f,
-        -0.5f,  0.5f,  0.5f,  0.0f, 1.0f,
-        -0.5f, -0.5f,  0.5f,  0.0f, 0.0f,
+    -0.5f, -0.5f,  0.5f,  0.0f,  0.0f, 1.0f,
+     0.5f, -0.5f,  0.5f,  0.0f,  0.0f, 1.0f,
+     0.5f,  0.5f,  0.5f,  0.0f,  0.0f, 1.0f,
+     0.5f,  0.5f,  0.5f,  0.0f,  0.0f, 1.0f,
+    -0.5f,  0.5f,  0.5f,  0.0f,  0.0f, 1.0f,
+    -0.5f, -0.5f,  0.5f,  0.0f,  0.0f, 1.0f,
 
-        -0.5f,  0.5f,  0.5f,  1.0f, 0.0f,
-        -0.5f,  0.5f, -0.5f,  1.0f, 1.0f,
-        -0.5f, -0.5f, -0.5f,  0.0f, 1.0f,
-        -0.5f, -0.5f, -0.5f,  0.0f, 1.0f,
-        -0.5f, -0.5f,  0.5f,  0.0f, 0.0f,
-        -0.5f,  0.5f,  0.5f,  1.0f, 0.0f,
+    -0.5f,  0.5f,  0.5f, -1.0f,  0.0f,  0.0f,
+    -0.5f,  0.5f, -0.5f, -1.0f,  0.0f,  0.0f,
+    -0.5f, -0.5f, -0.5f, -1.0f,  0.0f,  0.0f,
+    -0.5f, -0.5f, -0.5f, -1.0f,  0.0f,  0.0f,
+    -0.5f, -0.5f,  0.5f, -1.0f,  0.0f,  0.0f,
+    -0.5f,  0.5f,  0.5f, -1.0f,  0.0f,  0.0f,
 
-         0.5f,  0.5f,  0.5f,  1.0f, 0.0f,
-         0.5f,  0.5f, -0.5f,  1.0f, 1.0f,
-         0.5f, -0.5f, -0.5f,  0.0f, 1.0f,
-         0.5f, -0.5f, -0.5f,  0.0f, 1.0f,
-         0.5f, -0.5f,  0.5f,  0.0f, 0.0f,
-         0.5f,  0.5f,  0.5f,  1.0f, 0.0f,
+     0.5f,  0.5f,  0.5f,  1.0f,  0.0f,  0.0f,
+     0.5f,  0.5f, -0.5f,  1.0f,  0.0f,  0.0f,
+     0.5f, -0.5f, -0.5f,  1.0f,  0.0f,  0.0f,
+     0.5f, -0.5f, -0.5f,  1.0f,  0.0f,  0.0f,
+     0.5f, -0.5f,  0.5f,  1.0f,  0.0f,  0.0f,
+     0.5f,  0.5f,  0.5f,  1.0f,  0.0f,  0.0f,
 
-        -0.5f, -0.5f, -0.5f,  0.0f, 1.0f,
-         0.5f, -0.5f, -0.5f,  1.0f, 1.0f,
-         0.5f, -0.5f,  0.5f,  1.0f, 0.0f,
-         0.5f, -0.5f,  0.5f,  1.0f, 0.0f,
-        -0.5f, -0.5f,  0.5f,  0.0f, 0.0f,
-        -0.5f, -0.5f, -0.5f,  0.0f, 1.0f,
+    -0.5f, -0.5f, -0.5f,  0.0f, -1.0f,  0.0f,
+     0.5f, -0.5f, -0.5f,  0.0f, -1.0f,  0.0f,
+     0.5f, -0.5f,  0.5f,  0.0f, -1.0f,  0.0f,
+     0.5f, -0.5f,  0.5f,  0.0f, -1.0f,  0.0f,
+    -0.5f, -0.5f,  0.5f,  0.0f, -1.0f,  0.0f,
+    -0.5f, -0.5f, -0.5f,  0.0f, -1.0f,  0.0f,
 
-        -0.5f,  0.5f, -0.5f,  0.0f, 1.0f,
-         0.5f,  0.5f, -0.5f,  1.0f, 1.0f,
-         0.5f,  0.5f,  0.5f,  1.0f, 0.0f,
-         0.5f,  0.5f,  0.5f,  1.0f, 0.0f,
-        -0.5f,  0.5f,  0.5f,  0.0f, 0.0f,
-        -0.5f,  0.5f, -0.5f,  0.0f, 1.0f
+    -0.5f,  0.5f, -0.5f,  0.0f,  1.0f,  0.0f,
+     0.5f,  0.5f, -0.5f,  0.0f,  1.0f,  0.0f,
+     0.5f,  0.5f,  0.5f,  0.0f,  1.0f,  0.0f,
+     0.5f,  0.5f,  0.5f,  0.0f,  1.0f,  0.0f,
+    -0.5f,  0.5f,  0.5f,  0.0f,  1.0f,  0.0f,
+    -0.5f,  0.5f, -0.5f,  0.0f,  1.0f,  0.0f
     };
     
     float vertices[] = {
@@ -241,8 +249,8 @@ int main(int argc, char* argv[])
     cubeVAO.bind().execute([&](auto &vao){
         auto bo = cubevbo.bind();
         bo.glBufferData(cubeVertices,GL_STATIC_DRAW);
-        vao.glVertexAttribPointer(0,3,GL_FLOAT,GL_FALSE,5,0);
-        vao.glVertexAttribPointer(1,2,GL_FLOAT,GL_FALSE,5,3);
+        vao.glVertexAttribPointer(0,3,GL_FLOAT,GL_FALSE,6,0);
+        vao.glVertexAttribPointer(1,3,GL_FLOAT,GL_FALSE,6,3);
     });
     VAO skyboxVAO;
     VBO skyvbo(GL_ARRAY_BUFFER);
@@ -266,7 +274,8 @@ int main(int argc, char* argv[])
     stbi_set_flip_vertically_on_load(false);
     VTO cubemapTexture =loadCubemap(faces);
     shader.use();
-    shader.setUniform("texture1", 0);
+    //shader.setUniform("texture1", 0);
+    shader.setUniform("skybox", 0);
     skyboxShader.use();
     skyboxShader.setUniform("skybox", 0);
     float lastFrame;
@@ -288,9 +297,11 @@ int main(int argc, char* argv[])
         shader.setUniformMatrix4("model",1, GL_FALSE,glm::value_ptr(model));
         shader.setUniformMatrix4("view",1, GL_FALSE, glm::value_ptr(view));
         shader.setUniformMatrix4("projection",1, GL_FALSE, glm::value_ptr(projection));
+        shader.setUniformv("cameraPos",win.cam.Position);
         // cubes
         cubeVAO.bind().execute([&](auto& ao){
-            auto to =cubetexture.glActiveTexture(0);
+            //auto to =cubetexture.glActiveTexture(0);
+            auto to = cubemapTexture.glActiveTexture(0);
             glDrawArrays(GL_TRIANGLES, 0, 36);
         });
        

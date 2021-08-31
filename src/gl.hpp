@@ -241,6 +241,12 @@ namespace gl {
             int vertexColorLocation = glGetUniformLocation(*pgm, name.c_str());
             glUniform< Type>::args2v()(vertexColorLocation, count, v);
         }
+        void setUniformv(const std::string& name, const glm::vec3& v) {
+            setUniform3v(name, 1, glm::value_ptr(v));
+        }
+        void setUniformv(const std::string& name, const glm::vec2& v) {
+            setUniform3v(name, 1, glm::value_ptr(v));
+        }
         template<typename Type>
         void setUniformMatrix4(const std::string& name,GLuint count , GLboolean trasnpose, const Type* m){
             int vertexColorLocation = glGetUniformLocation(*pgm, name.c_str());
@@ -255,6 +261,15 @@ namespace gl {
         void setUniformMatrix2(const std::string& name, GLuint count, GLboolean trasnpose, const Type* m) {
             int vertexColorLocation = glGetUniformLocation(*pgm, name.c_str());
             glUniform< Type>::Matrix2v()(vertexColorLocation, count, trasnpose, m);
+        }
+        void setUnformMatrix(const std::string& name, const glm::mat2& m) {
+            setUniformMatrix2(name, 1, GL_FALSE,glm::value_ptr(m));
+        }
+        void setUnformMatrix(const std::string& name, const glm::mat3& m) {
+            setUniformMatrix3(name, 1, GL_FALSE, glm::value_ptr(m));
+        }
+        void setUnformMatrix(const std::string& name, const glm::mat4& m) {
+            setUniformMatrix4(name, 1, GL_FALSE, glm::value_ptr(m));
         }
     };
 
