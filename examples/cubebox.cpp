@@ -53,23 +53,7 @@ VTO  loadTexture(const std::string& path)
     return std::move(vto);
 
 }
-VTO loadCubemap(std::vector<std::string> faces)
-{
-    VTO vto(GL_TEXTURE_CUBE_MAP);
-    vto.bind().execute([&](auto& to){
-        for (unsigned int i = 0; i < faces.size(); i++)
-        {
-             to.glTexImage2D(0, GL_RGB,  GL_RGB, GL_UNSIGNED_BYTE, faces[i].c_str());    
-             to.next();
-        }
-        to.glTexParameteri( GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-        to.glTexParameteri( GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-        to.glTexParameteri( GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
-        to.glTexParameteri( GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
-        to.glTexParameteri( GL_TEXTURE_WRAP_R, GL_CLAMP_TO_EDGE);
-    });
-    return vto;
-}
+
 int main(int argc, char* argv[])
 {
     namespace fs = std::filesystem;
@@ -93,8 +77,6 @@ int main(int argc, char* argv[])
     
     auto shader = make_programme(make_shader(vfile, GL_VERTEX_SHADER), make_shader(ffile, GL_FRAGMENT_SHADER))(on_failure);
     auto skyboxShader = make_programme(make_shader(skyvfile, GL_VERTEX_SHADER), make_shader(skyffile, GL_FRAGMENT_SHADER))(on_failure);
-   
-   
     VAO cubeVAO;
     VBO cubevbo(GL_ARRAY_BUFFER);
     cubeVAO.bind().execute([&](auto &vao){
@@ -131,7 +113,7 @@ int main(int argc, char* argv[])
         fs::current_path().generic_string()+"/resources/images/skybox/back.jpg"
     };
     stbi_set_flip_vertically_on_load(false);
-    VTO cubemapTexture =loadCubemap(faces);
+    VTO cubemapTexture =VTO::fromCubemap(faces);
     shader.use();
     //shader.setUniform("texture1", 0);
     shader.setUniform("skybox", 0);

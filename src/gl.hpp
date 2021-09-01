@@ -149,18 +149,26 @@ namespace gl {
         Programme pgm;
         std::array<char, 512> log{ 0 };
         GProgramme() {}
-        GProgramme(const GShader& v, const GShader& f) {
-            pgm = glCreateProgram();
-            glAttachShader(*pgm, *v);
-            glAttachShader(*pgm, *f);
-            glLinkProgram(*pgm);
-            int success{};
+        template<typename... Args>
+        bool check_all(const Args&... args) {
+            return  ( *args &&...);
+        }
+        template<typename... Args>
+        GProgramme(const Args&... args) {
+            if (check_all(args...)) {
+                pgm = glCreateProgram();
+                (..., glAttachShader(*pgm, *args));
+                //glAttachShader(*pgm, *f);
+                glLinkProgram(*pgm);
+                int success{};
 
-            glGetProgramiv(*pgm, GL_LINK_STATUS, &success);
-            if (!success) {
-                glGetProgramInfoLog(*pgm, log.size(), NULL, log.data());
-                pgm = std::nullopt;
+                glGetProgramiv(*pgm, GL_LINK_STATUS, &success);
+                if (!success) {
+                    glGetProgramInfoLog(*pgm, log.size(), NULL, log.data());
+                    pgm = std::nullopt;
+                }
             }
+            
 
         }
         ~GProgramme() {
@@ -271,6 +279,11 @@ namespace gl {
         void setUnformMatrix(const std::string& name, const glm::mat4& m) {
             setUniformMatrix4(name, 1, GL_FALSE, glm::value_ptr(m));
         }
+        void setUniformBlockBinding(const std::string& name, GLuint pos) {
+
+            unsigned int index = ::glGetUniformBlockIndex(*pgm, name.c_str());
+            ::glUniformBlockBinding(*pgm, index, pos);
+        }
     };
 
     auto make_shader(const char* data, GLuint type) {
@@ -291,15 +304,14 @@ namespace gl {
             return std::move(shader);
         };
     }
-    template<typename V, typename F>
-    auto make_programme(V v, F f) {
-        return[v = std::move(v), f = std::move(f)](auto on_failure) {
-            auto vshader = v(on_failure);
-            auto fshader = f(on_failure);
+    template<typename... Args>
+    auto make_programme(Args&&... args) {
+        return[args...](auto on_failure) {
+           
             GProgramme pgm;
-            if (vshader && fshader) {
-                pgm = std::move(GProgramme(vshader, fshader));
-            }
+            
+            pgm = std::move(GProgramme(args(on_failure)...));
+            
             if (!pgm) {
                 on_failure(std::error_code{ GerrorCode::ProgrammeError }, pgm.log.data());
             }
@@ -427,7 +439,12 @@ namespace gl {
                 }
                 return BufferView(target, glMapBuffer(GL_WRITE_ONLY), size);
             }
-
+            auto glBindBufferBase(GLuint pos)const {
+                return ::glBindBufferBase(target, pos, index);
+            }
+            auto glBindBufferRange(GLuint pos, GLuint offset, GLuint size)const {
+                return ::glBindBufferRange(target, pos, index, offset, size);
+            }
             template<typename Func>
             void execute(Func func)const {
                 func(*this);
@@ -669,7 +686,23 @@ namespace gl {
         [[nodiscard]]  auto glActiveTexture(unsigned index){
            return object.glActiveTexture(index);
         }
-       
+        static VTO fromCubemap(std::vector<std::string> faces)
+        {
+            VTO vto(GL_TEXTURE_CUBE_MAP);
+            vto.bind().execute([&](auto& to) {
+                for (unsigned int i = 0; i < faces.size(); i++)
+                {
+                    to.glTexImage2D(0, GL_RGB, GL_RGB, GL_UNSIGNED_BYTE, faces[i].c_str());
+                    to.next();
+                }
+                to.glTexParameteri(GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+                to.glTexParameteri(GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+                to.glTexParameteri(GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+                to.glTexParameteri(GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+                to.glTexParameteri(GL_TEXTURE_WRAP_R, GL_CLAMP_TO_EDGE);
+                });
+            return vto;
+        }
         VTO(GLenum t) :SingularBO<VTOS>(t) {}
     };
     
