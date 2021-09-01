@@ -33,6 +33,8 @@ namespace gl{
         const T* data()const{return d;}
         const T& at(size_t index)const { assert(index < size());  return *(data() + index); }
         size_t size()const {return sz;}
+        const T* begin() { return d; }
+        const T* end() { return d+sz; }
     };
 
     template<typename Func1,typename Func2>

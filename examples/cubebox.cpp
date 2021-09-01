@@ -33,6 +33,7 @@ SOFTWARE.
 #include "debug.hpp"
 #include "model.hpp"
 #include <filesystem>
+#include <fstream>
 const unsigned int SCR_WIDTH = 800;
 const unsigned int SCR_HEIGHT = 600;
 using namespace gl;
@@ -75,180 +76,34 @@ int main(int argc, char* argv[])
    
     //Debug debug;
     CamWindow win(SCR_WIDTH, SCR_HEIGHT);
-   
-    const char* vshader = R"(
-                        #version 330 core
-                        layout (location = 0) in vec3 aPos;
-                        
-                        layout (location = 1) in vec3 aNormal;
-
-                        
-                        out vec3 Normal;
-                        out vec3 Position;
-
-                        uniform mat4 model;
-                        uniform mat4 view;
-                        uniform mat4 projection;
-
-                        void main()
-                        {
-                             
-                            Position=   vec3(model * vec4(aPos, 1.0));
-                            gl_Position = projection * view * vec4(Position,1);
-                            Normal = mat3(transpose(inverse(model)))*aNormal;
-                        }
-                        )";
-
-    const char* objfshader = R"(
-                    
-                            #version 330 core
-                            #import ../resources/shaders/lighting.fs;
-                            out vec4 FragColor;
-
-                            in vec3 Normal;
-                            in vec3 Position;
-
-                            uniform vec3 cameraPos;
-                            uniform samplerCube skybox;
-
-                            void main()
-                            {             
-                              
-                                FragColor = vec4(texture(skybox, calculate_refract(Position,cameraPos,Normal,0,3)).rgb, 1.0);
-                            }
-                    )";
   
     auto on_failure = [](const std::error_code& code,auto log) {
         std::cout << code.message() << log << std::endl;
         
     };
-   
+    std::ifstream vfile;
+    vfile.open(fs::current_path().generic_string() + "/resources/images/cube.vs");
+    std::ifstream ffile;
+    ffile.open(fs::current_path().generic_string() + "/resources/images/cube.fs");
+
+    std::ifstream skyvfile;
+    skyvfile.open(fs::current_path().generic_string() + "/resources/images/skybox.vs");
+    std::ifstream skyffile;
+    skyffile.open(fs::current_path().generic_string() + "/resources/images/skybox.fs");
     
-    auto shader = make_programme(make_shader(vshader, GL_VERTEX_SHADER), make_shader(objfshader, GL_FRAGMENT_SHADER))(on_failure);
-    auto skyboxShader = make_programme(make_shader(R"(
-        #version 330 core
-        layout (location = 0) in vec3 aPos;
-
-        out vec3 TexCoords;
-
-        uniform mat4 projection;
-        uniform mat4 view;
-
-        void main()
-        {
-            TexCoords = aPos;
-            vec4 pos = projection * view * vec4(aPos, 1.0);
-            gl_Position = pos.xyww;
-        }  
-    )", GL_VERTEX_SHADER), make_shader(R"(
-        #version 330 core
-        out vec4 FragColor;
-
-        in vec3 TexCoords;
-
-        uniform samplerCube skybox;
-
-        void main()
-        {    
-            FragColor = texture(skybox, TexCoords);
-        }
-    )", GL_FRAGMENT_SHADER))(on_failure);
+    auto shader = make_programme(make_shader(vfile, GL_VERTEX_SHADER), make_shader(ffile, GL_FRAGMENT_SHADER))(on_failure);
+    auto skyboxShader = make_programme(make_shader(skyvfile, GL_VERTEX_SHADER), make_shader(skyffile, GL_FRAGMENT_SHADER))(on_failure);
    
-    float cvertices[] = {
-    -0.5f, -0.5f, -0.5f,  0.0f,  0.0f, -1.0f,
-     0.5f, -0.5f, -0.5f,  0.0f,  0.0f, -1.0f,
-     0.5f,  0.5f, -0.5f,  0.0f,  0.0f, -1.0f,
-     0.5f,  0.5f, -0.5f,  0.0f,  0.0f, -1.0f,
-    -0.5f,  0.5f, -0.5f,  0.0f,  0.0f, -1.0f,
-    -0.5f, -0.5f, -0.5f,  0.0f,  0.0f, -1.0f,
-
-    -0.5f, -0.5f,  0.5f,  0.0f,  0.0f, 1.0f,
-     0.5f, -0.5f,  0.5f,  0.0f,  0.0f, 1.0f,
-     0.5f,  0.5f,  0.5f,  0.0f,  0.0f, 1.0f,
-     0.5f,  0.5f,  0.5f,  0.0f,  0.0f, 1.0f,
-    -0.5f,  0.5f,  0.5f,  0.0f,  0.0f, 1.0f,
-    -0.5f, -0.5f,  0.5f,  0.0f,  0.0f, 1.0f,
-
-    -0.5f,  0.5f,  0.5f, -1.0f,  0.0f,  0.0f,
-    -0.5f,  0.5f, -0.5f, -1.0f,  0.0f,  0.0f,
-    -0.5f, -0.5f, -0.5f, -1.0f,  0.0f,  0.0f,
-    -0.5f, -0.5f, -0.5f, -1.0f,  0.0f,  0.0f,
-    -0.5f, -0.5f,  0.5f, -1.0f,  0.0f,  0.0f,
-    -0.5f,  0.5f,  0.5f, -1.0f,  0.0f,  0.0f,
-
-     0.5f,  0.5f,  0.5f,  1.0f,  0.0f,  0.0f,
-     0.5f,  0.5f, -0.5f,  1.0f,  0.0f,  0.0f,
-     0.5f, -0.5f, -0.5f,  1.0f,  0.0f,  0.0f,
-     0.5f, -0.5f, -0.5f,  1.0f,  0.0f,  0.0f,
-     0.5f, -0.5f,  0.5f,  1.0f,  0.0f,  0.0f,
-     0.5f,  0.5f,  0.5f,  1.0f,  0.0f,  0.0f,
-
-    -0.5f, -0.5f, -0.5f,  0.0f, -1.0f,  0.0f,
-     0.5f, -0.5f, -0.5f,  0.0f, -1.0f,  0.0f,
-     0.5f, -0.5f,  0.5f,  0.0f, -1.0f,  0.0f,
-     0.5f, -0.5f,  0.5f,  0.0f, -1.0f,  0.0f,
-    -0.5f, -0.5f,  0.5f,  0.0f, -1.0f,  0.0f,
-    -0.5f, -0.5f, -0.5f,  0.0f, -1.0f,  0.0f,
-
-    -0.5f,  0.5f, -0.5f,  0.0f,  1.0f,  0.0f,
-     0.5f,  0.5f, -0.5f,  0.0f,  1.0f,  0.0f,
-     0.5f,  0.5f,  0.5f,  0.0f,  1.0f,  0.0f,
-     0.5f,  0.5f,  0.5f,  0.0f,  1.0f,  0.0f,
-    -0.5f,  0.5f,  0.5f,  0.0f,  1.0f,  0.0f,
-    -0.5f,  0.5f, -0.5f,  0.0f,  1.0f,  0.0f
-    };
-    
-    float vertices[] = {
-        // positions          
-        -1.0f,  1.0f, -1.0f,
-        -1.0f, -1.0f, -1.0f,
-        1.0f, -1.0f, -1.0f,
-        1.0f, -1.0f, -1.0f,
-        1.0f,  1.0f, -1.0f,
-        -1.0f,  1.0f, -1.0f,
-
-        -1.0f, -1.0f,  1.0f,
-        -1.0f, -1.0f, -1.0f,
-        -1.0f,  1.0f, -1.0f,
-        -1.0f,  1.0f, -1.0f,
-        -1.0f,  1.0f,  1.0f,
-        -1.0f, -1.0f,  1.0f,
-
-        1.0f, -1.0f, -1.0f,
-        1.0f, -1.0f,  1.0f,
-        1.0f,  1.0f,  1.0f,
-        1.0f,  1.0f,  1.0f,
-        1.0f,  1.0f, -1.0f,
-        1.0f, -1.0f, -1.0f,
-
-        -1.0f, -1.0f,  1.0f,
-        -1.0f,  1.0f,  1.0f,
-        1.0f,  1.0f,  1.0f,
-        1.0f,  1.0f,  1.0f,
-        1.0f, -1.0f,  1.0f,
-        -1.0f, -1.0f,  1.0f,
-
-        -1.0f,  1.0f, -1.0f,
-        1.0f,  1.0f, -1.0f,
-        1.0f,  1.0f,  1.0f,
-        1.0f,  1.0f,  1.0f,
-        -1.0f,  1.0f,  1.0f,
-        -1.0f,  1.0f, -1.0f,
-
-        -1.0f, -1.0f, -1.0f,
-        -1.0f, -1.0f,  1.0f,
-        1.0f, -1.0f, -1.0f,
-        1.0f, -1.0f, -1.0f,
-        -1.0f, -1.0f,  1.0f,
-        1.0f, -1.0f,  1.0f
-    };
-    ArrayView skyboxVertices(vertices, sizeof(vertices) / sizeof(float));
-    ArrayView cubeVertices(cvertices, sizeof(cvertices) / sizeof(float));
+   
     VAO cubeVAO;
     VBO cubevbo(GL_ARRAY_BUFFER);
     cubeVAO.bind().execute([&](auto &vao){
+        std::ifstream file;
+        file.open(fs::current_path().generic_string() + "/resources/images/cubedata.data");
+        std::stringstream s;
+        s<< file.rdbuf();
         auto bo = cubevbo.bind();
-        bo.glBufferData(cubeVertices,GL_STATIC_DRAW);
+        bo.loadFromStream(s);     
         vao.glVertexAttribPointer(0,3,GL_FLOAT,GL_FALSE,6,0);
         vao.glVertexAttribPointer(1,3,GL_FLOAT,GL_FALSE,6,3);
     });
@@ -256,7 +111,11 @@ int main(int argc, char* argv[])
     VBO skyvbo(GL_ARRAY_BUFFER);
     skyboxVAO.bind().execute([&](auto &vao){
         auto bo = skyvbo.bind();
-        bo.glBufferData(skyboxVertices,GL_STATIC_DRAW);
+        std::ifstream file;
+        file.open(fs::current_path().generic_string() + "/resources/images/skybox.data");
+        std::stringstream s;
+        s<< file.rdbuf();
+        bo.loadFromStream(s);
         vao.glVertexAttribPointer(0,3,GL_FLOAT,GL_FALSE,3,0);      
     });
     stbi_set_flip_vertically_on_load(true);

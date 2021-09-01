@@ -327,21 +327,24 @@ namespace gl {
     template<size_t SIZE>
     struct VBOS {
         struct Bounded {
-            unsigned index{ -1 };
+            using BUFFER_TYPE = float;
+            GLuint index{ std::numeric_limits<GLuint>::max() };
             GLenum target;
+            mutable GLsizeiptr size{ 0 };
             explicit Bounded(unsigned i, GLenum t) :index(i), target(t) {}
             ~Bounded() {
-                if (index >= 0) {
+                if (index != std::numeric_limits<GLuint>::max() ) {
                     glBindBuffer(target, 0);
                 }
             }
             Bounded(const Bounded&) = delete;
             Bounded(Bounded&& o) {
                 index = o.index;
-                o.index = -1;
+                o.index = std::numeric_limits<GLuint>::max() ;
             }
-            const Bounded& glBufferData(GLsizeiptr size, const void* data, GLenum usage)const {
-                ::glBufferData(target, size, data, usage);
+            const Bounded& glBufferData(GLsizeiptr s, const void* data, GLenum usage)const {
+                ::glBufferData(target, s, data, usage);
+                size = s;
                 return *this;;
 
             }
@@ -352,6 +355,79 @@ namespace gl {
                 return *this;
 
             }
+            const Bounded& glBufferSubData(GLuint offset,GLuint size, const void* data)const {
+                ::glBufferSubData(target, offset,size, data);
+                return *this;;
+
+            }
+            template <typename Buffer>
+            const Bounded& glBufferSubData(GLuint offset,Buffer buff)const {
+
+                ::glBufferSubData(target, offset,buff.size() * sizeof(Buffer::value_type), buff.data());
+                return *this;
+
+            }
+            class BufferView {
+                friend class VBOS<SIZE>;
+                BufferView(GLenum target, BUFFER_TYPE* base, GLuint size):target(target),base(base),size(size)
+                {
+
+                }
+            public:
+                using value_type = BUFFER_TYPE;
+                ~BufferView() {
+                    if (base)
+                        ::glUnmapBuffer(target);
+                }
+                BufferView(const BufferView&) = delete;
+                BufferView& operator = (const BufferView&) = delete;
+                BufferView(BufferView&& o) {
+                    std::swap(target ,o.target);
+                    std::swap(size,o.size);
+                    std::swap(base,o.base);
+                }
+                GLenum target{ GL_ARRAY_BUFFER };
+                BUFFER_TYPE* base{ nullptr };
+                size_t size{ 0 };
+                size_t current{ 0 };
+                using iterator = BUFFER_TYPE*;
+                using const_iteraor=const BUFFER_TYPE*;
+                iterator begin() { assert(base);  return base; }
+                iterator end() { return base+size; }
+                const_iteraor begin() const{ assert(base);  return base; }
+                const_iteraor end() const { return base + size; }
+                void advance(size_t index) {  current = (index > size) ? size : index; }
+                void push_back(BUFFER_TYPE v) {
+                    *(base + current) = v; current++;
+                }
+            };
+            template<typename Stream>
+            void loadFromStream(Stream& s){
+                int count;
+                s>>count;
+                glBufferData(count * sizeof(float),nullptr,GL_STATIC_DRAW);
+                auto view = mapWriteBuffer();  
+                std::copy(std::istream_iterator<float>(s), std::istream_iterator<float>(), std::back_inserter(view));
+            }
+            BUFFER_TYPE* glMapBuffer(GLenum mode)const{
+                return static_cast<BUFFER_TYPE*>(::glMapBuffer(target, mode));
+            }
+            auto glUnmapBuffer()const{
+                return ::glUnmapBuffer(target);
+            }
+            const BufferView mapReadBuffer()const {
+                if (size <= 0) {
+                    return BufferView(target, nullptr, 0);
+                }
+                return BufferView(target, glMapBuffer(GL_READ_ONLY), size);
+            }
+            BufferView mapWriteBuffer()const {
+                if (size <= 0) {
+                    return BufferView(target, nullptr, 0);
+                }
+                return BufferView(target, glMapBuffer(GL_WRITE_ONLY), size);
+            }
+
             template<typename Func>
             void execute(Func func)const {
                 func(*this);
@@ -384,7 +460,7 @@ namespace gl {
         [[nodiscard]] Bounded bind(unsigned index) {
             assert(index >= 0 && index < vbos.size());
             glBindBuffer(target, vbos[index]);
-            return Bounded{ index ,target };
+            return Bounded{ vbos[index] ,target };
         }
 
     };
