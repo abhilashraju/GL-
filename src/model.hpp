@@ -51,15 +51,75 @@ namespace gl {
         std::vector<Mesh>    meshes;
         std::string directory;
         bool gammaCorrection;
-
+        GProgramme debugShader_;
         // constructor, expects a filepath to a 3D model.
         Model(std::string const& path, bool gamma = false) : gammaCorrection(gamma)
         {
+            auto on_failure = [](const std::error_code& code,auto log) {
+                std::cout << code.message() << log << std::endl;
+                
+            };
+            debugShader_= make_programme(make_shader(R"(#version 330 core
+                                    layout (location = 0) in vec3 aPos;
+                                    layout (location = 1) in vec3 aNormal;
+
+                                    out VS_OUT {
+                                        vec3 normal;
+                                    } vs_out;
+
+                                    uniform mat4 view;
+                                    uniform mat4 model;
+
+                                    void main()
+                                    {
+                                        mat3 normalMatrix = mat3(transpose(inverse(view * model)));
+                                        vs_out.normal = normalMatrix * aNormal;
+                                        gl_Position = view * model * vec4(aPos, 1.0); 
+                                    })",GL_VERTEX_SHADER),
+                                    make_shader(R"(#version 330 core
+                                    out vec4 FragColor;
+
+                                    void main()
+                                    {
+                                        FragColor = vec4(0.0, 1.0, 0.0, 1.0);
+                                    }
+                                    )",GL_FRAGMENT_SHADER),
+                                    make_shader(R"(#version 330 core
+                                    layout (triangles) in;
+                                    layout (line_strip, max_vertices = 6) out;
+
+                                    in VS_OUT {
+                                        vec3 normal;
+                                    } gs_in[];
+
+                                    const float MAGNITUDE = 0.2;
+
+                                    uniform mat4 projection;
+
+                                    void GenerateLine(vec4 Pos,vec3 N)
+                                    {
+                                        gl_Position = projection * Pos;
+                                        EmitVertex();
+                                        gl_Position = projection * (Pos + vec4(N, 0.0) * MAGNITUDE);
+                                        EmitVertex();
+                                        EndPrimitive();
+                                    }
+                                    void main()
+                                    {
+                                        GenerateLine(gl_in[0].gl_Position,vec3(normalize(gs_in[0].normal))); // first vertex normal
+                                        GenerateLine(gl_in[1].gl_Position,vec3(normalize(gs_in[1].normal))); // second vertex normal
+                                        GenerateLine(gl_in[2].gl_Position,vec3(normalize(gs_in[2].normal))); // third vertex normal  
+                                       
+                                    })",GL_GEOMETRY_SHADER))(on_failure);
             loadModel(path);
         }
 
         // draws the model, and thus all its meshes
-
+        GProgramme& debugShader(){return debugShader_;}
+        void drawNormals(const glm::mat4& model, const glm::mat4& view, const glm::mat4& projection){
+            
+            draw(debugShader_,model,view,projection);
+        }
         void draw(GProgramme& shader)
         {
             for (unsigned int i = 0; i < meshes.size(); i++)

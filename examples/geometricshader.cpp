@@ -62,37 +62,12 @@ int main(int argc, char* argv[])
     GProgramme screenShaders[] = {
         make_programme(make_shader(openfile("/resources/images/gsexample.vs"), GL_VERTEX_SHADER),
                        make_shader(openfile("/resources/images/gsexample.fs"), GL_FRAGMENT_SHADER))(on_failure),
-        make_programme(make_shader(openfile("/resources/shaders/debug_normal.vs"), GL_VERTEX_SHADER),
-                       make_shader(openfile("/resources/shaders/debug_normal.fs"), GL_FRAGMENT_SHADER),
-                       make_shader(openfile("/resources/shaders/debug_normal.gs"), GL_GEOMETRY_SHADER))(on_failure)
+        
     };
    
     stbi_set_flip_vertically_on_load(true);
     Model ourModel(apppath+"/resources/images/backpack.obj");
- 
-    float vertices[] = { // vertex attributes for a quad that fills the entire screen in Normalized Device Coordinates.
-          
-        -2.0f,  -2.0f, 0.f,   0.0f, 1.0f,0.0f, 0.0f,0.0f,1.0f,
-         2.0f,  -2.0f, 0.f,   0.0f, 0.0f,1.0f, 0.0f,0.0f,1.0f,
-        -2.0f,  2.0f,  0.f,   0.0f, 0.0f,0.0f, 0.0f,0.0f,1.0f,
-          
-         2.0f,  -2.0f, 0.f,   0.0f, 0.0f,1.0f, 0.0f,0.0f,1.0f,
-         2.0f,   2.0f, -2.f,   1.0f, 0.0f,1.0f, 0.0f,0.0f,1.0f,
-        -2.0f,   2.0f, 0.f,   1.0f, 0.0f,1.0f, 0.0f,0.0f,1.0f,
-        
-    };
-    ArrayView quadVertices(vertices, sizeof(vertices) / sizeof(float));
-    stbi_set_flip_vertically_on_load(true);
-    VAO quadVAO;
-    VBO quadVBO(GL_ARRAY_BUFFER);
-    quadVAO.bind().execute([&](auto& vao) {
-        auto b = quadVBO.bind();
-        b.glBufferData(quadVertices, GL_STATIC_DRAW);
-        vao.glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 9, 0);
-        vao.glVertexAttribPointer(2, 3, GL_FLOAT, GL_FALSE, 9, 3);
-        vao.glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 9, 6);
-    });
-    
+   
     
   
     float lastFrame;
@@ -110,23 +85,11 @@ int main(int argc, char* argv[])
         glEnable(GL_DEPTH_TEST);
         glm::mat4 view = win.cam.GetViewMatrix();
         glm::mat4 projection = glm::perspective(glm::radians(win.cam.Zoom), win.width / win.height, 0.1f, 100.0f);
-        screenShaders[1].use();
-        screenShaders[1].setUniformMatrix("view", view);
-        screenShaders[1].setUniformMatrix("projection", projection);
-        screenShaders[1].setUniformMatrix("model", glm::rotate(glm::mat4(1), glm::radians(currentFrame * 15), glm::vec3(0, 1, 0)));
-        ourModel.draw(screenShaders[1]);
-         /*quadVAO.bind().execute([&](auto& vao) {
-            glDrawArrays(GL_TRIANGLES, 0, 6);
-            }); */
-
-        screenShaders[0].use();
-        screenShaders[0].setUniformMatrix("view", view);
-        screenShaders[0].setUniformMatrix("projection", projection);
-        screenShaders[0].setUniformMatrix("model", glm::rotate(glm::mat4(1),glm::radians(currentFrame*15),glm::vec3(0,1,0)));
-        ourModel.draw(screenShaders[0]);
-        /* quadVAO.bind().execute([&](auto& vao) {
-            glDrawArrays(GL_TRIANGLES, 0,6);
-        }); */
+       
+        ourModel.draw(screenShaders[0], glm::rotate(glm::mat4(1), glm::radians(currentFrame * 15), glm::vec3(0, 1, 0)), view, projection);
+        
+        ourModel.drawNormals(glm::rotate(glm::mat4(1), glm::radians(currentFrame * 15), glm::vec3(0, 1, 0)),view,projection);
+       
 
         
        
