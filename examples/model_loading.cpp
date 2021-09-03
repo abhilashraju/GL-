@@ -42,66 +42,16 @@ auto& operator<<(T& os, const glm::vec3& vec) {
 }
 int main(int argc, char* argv[])
 {
-    auto apppath = std::filesystem::current_path();
+    
     //Debug debug;
     CamWindow win(SCR_WIDTH, SCR_HEIGHT);
    
-    const char* vshader = R"(
-                        #version 330 core
-                        #import core;
-                        layout (location = 0) in vec3 aPos;
-                        layout (location = 1) in vec3 aNormal;
-                        layout (location = 2) in vec2 aTexCoords;
-                
-                        out vec2 TexCoords;
-                        out vec3 Normal;
-                        out vec3 FragPos;
-
-                        uniform mat4 model;
-                        uniform mat4 view;
-                        uniform mat4 projection;
-                    
-                        void main()
-                        {
-                            TexCoords = aTexCoords;    
-                            gl_Position = projection * view * model * vec4(aPos, 1.0);
-                            Normal = AdjustNormal(model,aNormal);
-                            FragPos= mat3(model) * aPos;
-                        }
-                        )";
-
-    const char* objfshader = R"(
-                    
-                            #version 330 core
-                            #import lights;
-                            #import core;
-                            out vec4 FragColor;
-
-                            in vec2 TexCoords;
-                            in vec3 Normal;
-                            in vec3 FragPos;
-                            
-
-                            uniform vec3 camDir;
-                            uniform sampler2D texture_diffuse1;
-                            uniform sampler2D texture_specular1;
-                            uniform int nooflights;
-                            uniform SpotLight dirlights[4];
-                            void main()
-                            {   
-                                LightResults res;
-                                for(int i=0;i<nooflights;i++){
-                                    LightResults cres=CalcSpotLight(dirlights[i],Normal,FragPos,camDir,0.25); 
-                                    res.ambient+=cres.ambient;
-                                    res.diffuse+=cres.diffuse;
-                                    res.specular+=cres.specular;
-                                }
-                                
-                
-                                vec3 color=(res.ambient+res.diffuse) * vec3(texture(texture_diffuse1, TexCoords)) +  res.specular*vec3(texture(texture_specular1, TexCoords));
-                                FragColor = vec4(color, 1.0);
-                            }
-                    )";
+    auto apppath = std::filesystem::current_path().generic_string();
+    auto openfile = [&](auto arg) {
+        std::ifstream  f;
+        f.open(apppath + arg);
+        return f;
+    };
   
     auto on_failure = [](const std::error_code& code,auto log) {
         std::cout << code.message() << log << std::endl;
@@ -109,12 +59,12 @@ int main(int argc, char* argv[])
     };
    
     
-    auto shaderProgram = make_programme(make_shader(vshader, GL_VERTEX_SHADER), make_shader(objfshader, GL_FRAGMENT_SHADER))(on_failure);
+    auto shaderProgram = make_programme(make_shader(openfile("/resources/images/modelloading.vs"), GL_VERTEX_SHADER), make_shader(openfile("/resources/images/modelloading.fs"), GL_FRAGMENT_SHADER))(on_failure);
 
     auto commonshaderProgram = make_programme(make_shader(CommonVertexShader::to_shader_str().data(), GL_VERTEX_SHADER), make_shader(CommonFragmentShader::to_shader_str(true).data(), GL_FRAGMENT_SHADER))(on_failure);
     stbi_set_flip_vertically_on_load(true);
-    Model ourModel("C:/Users/rabhil/work/GLplus/build/Debug/images/backpack.obj");
-    Model lightModel("C:/Users/rabhil/work/GLplus/build/Debug/images/light.obj");
+    Model ourModel(apppath+"/resources/images/backpack.obj");
+    Model lightModel(apppath + "/resources/images/light.obj");
 
     int distance{ 10 };
     int number_of_lights = 0;
